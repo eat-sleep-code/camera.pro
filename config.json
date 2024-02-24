@@ -1,0 +1,29 @@
+[
+	{
+		"outputDirectory": "~/dcim",
+		"cameras": {
+			"primary": {
+				"rotation": 0,
+				"raw": true,
+				"exif": {
+					"fStop": 0,
+					"focalLength": 0,
+					"focalLengthEquivalent": 0
+				}
+			},
+			"secondary": {
+				"rotation": 0,
+				"raw": true,
+				"exif": {
+					"fStop": 0,
+					"focalLength": 0,
+					"focalLengthEquivalent": 0
+				}
+			}
+		},
+		"display": {
+			"width": 800,
+			"height": 600
+		}
+	}
+]
