@@ -17,7 +17,7 @@ The below information is incomplete / inaccurate at this time.
 ```bash
 sudo apt update && sudo apt full-upgrade -y && sudo apt autoremove -y && sudo apt autoclean
 ```
-- Connect the Raspberry Pi camera to your Raspberry Pi
+- Connect the Raspberry Pi camera(s) to your Raspberry Pi
 
 
 ## Installation
