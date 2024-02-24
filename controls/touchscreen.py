@@ -1,5 +1,4 @@
 from PySide6.QtWidgets import QApplication, QPushButton
-from PySide6.QtCore import Slot
 from actions import Actions
 import globals
 import sys
