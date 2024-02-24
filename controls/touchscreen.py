@@ -12,6 +12,11 @@ class Touchscreen:
 		global app
 		app = QApplication(sys.argv)
   
+		with open("style.qss", "r") as styleSheetFile:
+			styleSheet = styleSheet.read()
+			app.setStyleSheet(styleSheet)
+
+
 		captureImageButton = QPushButton('Capture Image')
 		captureImageButton.clicked.connect(actions.CaptureImage)
 		captureImageButton.show()
