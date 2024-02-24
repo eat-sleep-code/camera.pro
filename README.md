@@ -1,4 +1,4 @@
-# Camera (Pro)
+# Camera PRO
 
 > [!WARNING]
 This is not yet a working application.   Once complete, it will replace the current [Camera](https://github.com/eat-sleep-code/camera) program.
@@ -29,38 +29,14 @@ sudo chmod +x ~/install.sh && ~/install.sh
 
 ## Usage
 ```bash
-camera <options>
+camera
 ```
-
-### Options
-
-+ _--interval_ : Set the timelapse interval    *(default: 10)*
-+ _--framerate_ : Set the output framerate     *(default: 60)*
-+ _--rotate_ : Rotate the camera in 90&deg; increments     *(default: 0)*
-+ _--exifFStop_ : Set the numeric F-Stop value in the image EXIF data *(default: Not specified)*
-+ _--exifFocalLength_ : Set the numeric Focal Length value (mm) in the image EXIF data *(default: Not specified)*
-+ _--exifFocalLengthEquivalent_ : Set the numeric 35mm Focal Length value (mm) in the image EXIF data *(default: Not specified)*
-+ _--outputFolder_ : Set the folder where images will be saved     *(default: dcim/)*
-+ _--retention_ : Set the number of days to locally retain the captured files    *(default: 7)*
-+ _--waitUntilAnalysis_ : Set whether to perform an initial analysis.     *(default: False)*
-+ _--renderVideo_ : Set whether a video is generated every 24 hours     *(default: True)*
-+ _--uploadVideo_ : Set whether to automatically upload videos to YouTube    *(default: False)*
-+ _--privacy_ : Set the privacy status of the YouTube video  *(default: public)*
-
-
-### Example
-```bash
-camera --rotate 180 --exifFStop 2.2 --exifFocalLength 2.75 --exifFocalLengthEquivalent 16 --retention 14 --uploadVideo True
-```
-
-> [!TIP]
-> The EXIF data shown above is completely optional but may prove useful when using captured images with third-party applications such as photogrammetry software.
 
 ---
 
 ## Automatic YouTube Upload
 
-- Copy [config.json.example](config.json.example) to a new file called __config.json__.
+- Copy [youtube/config.json.example](config.json.example) to a new file called __youtube/config.json__.
 - Sign in to the [Google APIs & Services](https://console.cloud.google.com/apis/dashboard) console.
 - If necessary, create a new Project.
 - Expand the left menu and select the __Enabled APIs & services__ menu item.
@@ -71,9 +47,9 @@ camera --rotate 180 --exifFStop 2.2 --exifFocalLength 2.75 --exifFocalLengthEqui
 - :heavy_exclamation_mark: Select __Desktop app__ from the __Application Type__ dropdown menu.  Selecting any other option from the list will make authentication impossible. :heavy_exclamation_mark:
 - Enter an appropriate value in the __Name__ field and click the Submit button.   
 - From the screen that appears, copy the Client ID and Client Secret and paste them in the appropriate places within the config.json file you created in the first step.
-- Open a terminal and execute `./camera.timelapse/setup-youtube-device-trust.sh`.  You will be prompted to open a link in the browser.
+- Open a terminal and execute `./camera/youtube/authorize.sh`.  You will be prompted to open a link in the browser.
 - You will receive a warning about only continuing if you trust the requestor.   If you trust yourself, advance to the final step to complete the authentication process.
-- Be sure to set __--uploadVideo__ to __True__ when you launch `camera.timelapse` to automatically upload the new videos after they are created each day.
+
 ---
 
 ## Autostart Application
@@ -81,7 +57,7 @@ Want to start the application every time you boot your Raspberry Pi?  Here is ho
 
 * Review `/etc/systemd/system/camera.service`
    * If you would like to add any of aforementioned options you may do so by editing the service file.
-* Run `~/camera.pro/install-camera.service.sh`
+* Run `~/camera.pro/install-service.sh`
 
 ---
 
@@ -104,9 +80,4 @@ awb_auto_is_greyworld=1
 > You may wish to increase your SWAP file to match your memory size as outlined in this [third-party guide](https://pimylifeup.com/raspberry-pi-swap-file/).
 
 ---
-
-> [!IMPORTANT]
-> *This application was developed using ...
-
- Issues may arise if you are using either third party or older hardware.*
 
