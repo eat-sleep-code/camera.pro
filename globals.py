@@ -12,7 +12,7 @@ import sys
 
 class Config:
 	def __init__(self):
-		with open('../config.json') as configFile:
+		with open('config.json') as configFile:
 			self.configData = json.load(configFile)[0]
 	
 	def __call__(self):
