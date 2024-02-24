@@ -4,6 +4,7 @@ from capture.still import Still
 from file import File
 from PySide6.QtCore import Slot
 import fractions
+import threading
 
 console = Console()
 
@@ -14,9 +15,12 @@ class Actions:
 	@Slot()
 	def CaptureImage(self):
 		stereoCaptureEnabled: bool = State.stereoCaptureEnabled
-		Still().capture('primary', File.GetPath(True, False, 1), Primary.rotation, Primary.raw)
+		capturePrimaryThread = threading.Thread(target=Still().capture('primary', File.GetPath(True, False, 1), Primary.rotation, Primary.raw))
+		capturePrimaryThread.start()
+		Still()
 		if stereoCaptureEnabled == True:
-			Still().capture('secondary', File.GetPath(True, False, 2), Secondary.rotation, Secondary.raw)
+			captureSecondaryThread = threading.Thread(target=Still().capture('secondary', File.GetPath(True, False, 2), Secondary.rotation, Secondary.raw))
+			captureSecondaryThread.start()
 
 	
 # ------------------------------------------------------------------------------				
