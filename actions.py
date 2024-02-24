@@ -1,9 +1,9 @@
 from functions import Console
-from globals import Cameras, State
+from globals import Cameras, Primary, Secondary, State
 from capture.still import Still
+from file import File
 from PySide6.QtCore import Slot
 import fractions
-
 
 console = Console()
 
@@ -14,9 +14,9 @@ class Actions:
 	@Slot()
 	def CaptureImage(self):
 		stereoCaptureEnabled: bool = State.stereoCaptureEnabled
-		Still().capture('primary')
+		Still().capture('primary', File.GetPath(True, False, 1), Primary.rotation, Primary.raw)
 		if stereoCaptureEnabled == True:
-			Still().capture('secondary')
+			Still().capture('secondary', File.GetPath(True, False, 2), Secondary.rotation, Secondary.raw)
 
 	
 # ------------------------------------------------------------------------------				
@@ -76,15 +76,15 @@ class Actions:
 
 		try:
 			State.shutter = shutter
-			if Cameras.Primary.module.framerate == defaultFramerate and shutter > shutterLongThreshold:
-				Cameras.Primary.module.framerate=fractions.Fraction(5, 1000)
-			elif Cameras.Primary.module.framerate != shutterLongThreshold and shutter <= shutterLongThreshold:
-				Cameras.Primary.module.framerate = defaultFramerate
+			if Primary.module.framerate == defaultFramerate and shutter > shutterLongThreshold:
+				Primary.module.framerate=fractions.Fraction(5, 1000)
+			elif Primary.module.framerate != shutterLongThreshold and shutter <= shutterLongThreshold:
+				Primary.module.framerate = defaultFramerate
 		
 			if shutter == 0:
-				Cameras.Primary.controls.ExposureTime = 0
+				Primary.controls.ExposureTime = 0
 			else:
-				Cameras.Primary.controls.ExposureTime = shutter * 1000
+				Primary.controls.ExposureTime = shutter * 1000
 		except Exception as ex:
 			State.lastMessage = 'Invalid Shutter Speed! ' + str(shutter)
 			console.warn(State.lastMessage + str(ex))
@@ -115,10 +115,10 @@ class Actions:
 
 		try:
 			if str(iso).lower() == 'auto' or str(iso) == '0':
-				Cameras.Primary.controls.AeEnable = 1
+				Primary.controls.AeEnable = 1
 				iso = 0
 			else: 
-				Cameras.Primary.controls.AeEnable = 0
+				Primary.controls.AeEnable = 0
 				iso = int(iso)
 				if iso < isoMin:	
 					iso = isoMin
@@ -131,7 +131,7 @@ class Actions:
 		try:	
 			State.iso = iso
 			analogGain = iso/100
-			Cameras.Primary.controls.AnalogueGain = analogGain
+			Primary.controls.AnalogueGain = analogGain
 		except Exception as ex:
 			State.lastMessage = 'Invalid ISO! ' + str(iso)
 			console.warn(State.lastMessage + str(ex))
@@ -156,11 +156,11 @@ class Actions:
 
 		try:	
 			if exposureMode == 'Disabled':
-				Cameras.Primary.module.AeExposureMode = 'Normal'
-				Cameras.Primary.module.AeEnable = False
+				Primary.module.AeExposureMode = 'Normal'
+				Primary.module.AeEnable = False
 			else:
-				Cameras.Primary.module.AeEnable = True
-				Cameras.Primary.module.AeExposureMode = exposureMode
+				Primary.module.AeEnable = True
+				Primary.module.AeExposureMode = exposureMode
 		except Exception as ex: 
 			State.lastMessage = 'Invalid Auto Exposure Mode Setting! ' + str(exposureMode)
 			console.warn(State.lastMessage + str(ex))
@@ -180,9 +180,9 @@ class Actions:
 			meteringMode = 'CentreWeighted'
 
 		try:	
-			Cameras.Primary.module.AeMeteringMode = meteringMode
+			Primary.module.AeMeteringMode = meteringMode
 		except Exception as ex: 
-			State.lastMessage = 'Invalid Auto Exposure Metering Mode Setting! ' + str(exposureMode)
+			State.lastMessage = 'Invalid Auto Exposure Metering Mode Setting! ' + str(meteringMode)
 			console.warn(State.lastMessage + str(ex))
 
 
@@ -210,7 +210,7 @@ class Actions:
 
 		try:
 			State.exposureValue = exposureValue
-			Cameras.Primary.module.ExposureValue = exposureValue
+			Primary.module.ExposureValue = exposureValue
 			State.exposureValuePrefix = exposureValuePrefix
 			
 		except Exception as ex: 
@@ -237,10 +237,10 @@ class Actions:
 				bracket = int(bracket - 1)
 
 		try:
-			bracketLow = Cameras.Primary.controls.ExposureValue - bracket
+			bracketLow = Primary.controls.ExposureValue - bracket
 			if bracketLow < exposureValueMin:
 				bracketLow = exposureValueMin
-			bracketHigh = Cameras.Primary.controls.ExposureValue + bracket
+			bracketHigh = Primary.controls.ExposureValue + bracket
 			if bracketHigh > exposureValueMax:
 				bracketHigh = exposureValueMax
 
@@ -276,11 +276,11 @@ class Actions:
 			awbMode = 'Auto'
 		try:	
 			if awbMode == 'Disabled':
-				Cameras.Primary.module.AwbMode = 'Auto'
-				Cameras.Primary.module.AwbEnable = False
+				Primary.module.AwbMode = 'Auto'
+				Primary.module.AwbEnable = False
 			else:
-				Cameras.Primary.module.AwbEnable = True
-				Cameras.Primary.module.AwbMode = exposureMode
+				Primary.module.AwbEnable = True
+				Primary.module.AwbMode = exposureMode
 		except Exception as ex: 
 			State.lastMessage = 'Invalid Auto Exposure Metering Mode Setting! ' + str(exposureMode)
 			console.warn(State.lastMessage + str(ex))

@@ -4,7 +4,7 @@ import os
 
 
 class File:
-	def GetPath(timestamped: bool = True, isVideo: bool = False):
+	def GetPath(timestamped: bool = True, isVideo: bool = False, subIdentifier: int = 1):
 		config = Config()
 		outputDirectory = config['outputDirectory']
 		try:
@@ -14,11 +14,11 @@ class File:
 			echo.on()
 			quit()
 		else:
-			return outputDirectory + File.GetName(timestamped, isVideo)
+			return outputDirectory + File.GetName(timestamped, isVideo, subIdentifier)
 
 
 
-	def GetName(timestamped: bool = True, isVideo: bool = False):
+	def GetName(timestamped: bool = True, isVideo: bool = False, subIdentifier: int = 1):
 		now = datetime.datetime.now()
 		datestamp = now.strftime('%Y%m%d')
 		timestamp = now.strftime('%H%M%S')		
@@ -30,6 +30,6 @@ class File:
 			state = State()
 			extension = '.jpg'
 			if timestamped == True:
-				return datestamp + '-' + timestamp + '-' + str(state.imageCount).zfill(2) + extension
+				return datestamp + '-' + timestamp + '-' + str(state.imageCount).zfill(2) + '-' + str(subIdentifier).zfill(2) + extension
 			else:
 				return datestamp + '-' + str(state.imageCount).zfill(8) + extension

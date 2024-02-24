@@ -1,7 +1,6 @@
 from functions import Console
 from globals import Cameras
 from capture.postProcess import PostProcess
-from capture.postProcess import EXIF
 
 console = Console()
 postProcess = PostProcess()

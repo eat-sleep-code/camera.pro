@@ -1,8 +1,6 @@
 from functions import Console
-from globals import Cameras
 from PIL import Image
 import piexif
-import piDNG
 
 console = Console()
 
