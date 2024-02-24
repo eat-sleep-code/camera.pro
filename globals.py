@@ -2,7 +2,6 @@ from capture.postProcess import EXIF
 from libcamera import ColorSpace
 from picamera2 import Picamera2
 from picamera2.controls import Controls
-from PySide6.QtWidgets import QApplication
 import json
 import os
 import sys
@@ -85,11 +84,7 @@ class Preview:
 
 class State:
 	def __init__(self):
-		global app
-		app = QApplication(sys.argv)
-
-		# ----------------------------------------------------------------------
-
+		
 		self.lastMessage: str = ''
 		self.imageCount: int = 0
 
@@ -143,10 +138,6 @@ class State:
 		# ----------------------------------------------------------------------
 
 		self.detections = []
-
-		# ----------------------------------------------------------------------
-
-		app.exec()
 
 
 # ==============================================================================
