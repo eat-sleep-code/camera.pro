@@ -1,6 +1,6 @@
 from functions import Console
-from globals import Cameras
 from capture.postProcess import PostProcess
+import globals
 
 console = Console()
 postProcess = PostProcess()
@@ -11,15 +11,15 @@ class Still:
 	@staticmethod
 	def capture(camera: str, filePath: str, rotate: int, raw: bool = True):
 
-		cameraList = Cameras()
+	
 		if camera == 'secondary':
-			module = cameraList.Secondary.module
-			exifData = cameraList.Secondary.exif
-			stillConfiguration = cameraList.Secondary.stillConfiguration
+			module = globals.Secondary.module
+			exifData = globals.Secondary.exif
+			stillConfiguration = globals.Secondary.stillConfiguration
 		else:
-			module = Cameras().Primary.module
-			exifData = cameraList.Primary.exif
-			stillConfiguration = cameraList.Primary.stillConfiguration
+			module = globals.Cameras().Primary.module
+			exifData = globals.Primary.exif
+			stillConfiguration = globals.Primary.stillConfiguration
 
 		request = module.switch_mode_and_capture_request(stillConfiguration)
 		request.save('main', filePath)

@@ -9,6 +9,8 @@ import sys
 
 
 
+
+
 # ==============================================================================
 
 class Config:
@@ -38,8 +40,9 @@ class Primary:
 		primaryExif.fStop = config['cameras']['primary']['exif']['fstop']
 		primaryExif.focalLength = config['cameras']['primary']['exif']['focalLength']
 		primaryExif.focalLengthEquivalent = config['cameras']['primary']['exif']['focalLengthEquivalent']	
-		self.exif = primaryExif
-	
+		self.exif: EXIF = primaryExif
+		self.isRecording: bool = False
+
 # --------------------------------------------------------------------------
 				
 class Secondary:
@@ -57,7 +60,8 @@ class Secondary:
 			secondaryExif.fStop = config['cameras']['secondary']['exif']['fstop']
 			secondaryExif.focalLength = config['cameras']['secondary']['exif']['focalLength']
 			secondaryExif.focalLengthEquivalent = config['cameras']['secondary']['exif']['focalLengthEquivalent']	
-			self.exif = secondaryExif
+			self.exif: EXIF = secondaryExif
+			self.isRecording: bool = False
 
 # --------------------------------------------------------------------------
 			
@@ -87,7 +91,7 @@ class State:
 		
 		self.lastMessage: str = ''
 		self.imageCount: int = 0
-
+		
 		# ----------------------------------------------------------------------
 		
 		self.stereoCaptureEnabled: bool = False
@@ -141,6 +145,23 @@ class State:
 
 
 # ==============================================================================
+
+
+def initialize():
+	global config
+	config = Config()
+
+	global cameras 
+	cameras = Cameras()
+
+	global primaryCamera
+	primaryCamera = Cameras().Primary()
+
+	global preview
+	preview = Preview()
+
+	global state
+	state = State()
 
 
 def restart():

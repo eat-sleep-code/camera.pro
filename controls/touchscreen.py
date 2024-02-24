@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QApplication, QPushButton
 from PySide6.QtCore import Slot
 from actions import Actions
-from globals import Cameras
+import globals
 import sys
 
 actions = Actions()
@@ -90,7 +90,7 @@ class Touchscreen:
 
 		setStereoButton = QPushButton('Set Stereo')
 		setStereoButton.clicked.connect(actions.SetStereo)
-		if Cameras.count > 1:
+		if globals.Cameras.count > 1:
 			setStereoButton.setEnabled = False
 		setStereoButton.show()
 
