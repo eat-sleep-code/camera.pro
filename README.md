@@ -9,10 +9,14 @@ The below information is incomplete / inaccurate at this time.
 
 ## Getting Started
 
-- Use [Raspberry Pi Imager](https://www.raspberrypi.com/software) to install Raspberry Pi OS Lite *(Bookworm)* on a microSD card
+- Use [Raspberry Pi Imager](https://www.raspberrypi.com/software) to install Raspberry Pi OS *(Bookworm)* on a microSD card
 - Use [raspi-config](https://www.raspberrypi.org/documentation/configuration/raspi-config.md) to:
   - Enable the CSI camera interface
   - Set up your WiFi connection
+- Execute the following to update all installed software to the latest version(s):
+```bash
+sudo apt update && sudo apt full-upgrade -y && sudo apt autoremove -y && sudo apt autoclean
+```
 - Connect the Raspberry Pi camera to your Raspberry Pi
 
 
