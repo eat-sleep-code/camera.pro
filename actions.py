@@ -297,6 +297,7 @@ class Actions:
 
 # ------------------------------------------------------------------------------	
 
+
 	@Slot()
 	def SetTimer(self):
 		timer: int = globals.State.timer 
@@ -311,6 +312,7 @@ class Actions:
 		
 		globals.State.timer = timer
 
+
 # ------------------------------------------------------------------------------			
 
 
@@ -318,5 +320,16 @@ class Actions:
 	def ToggleSettings(self):
 		pass
 
+				
+# ------------------------------------------------------------------------------
 
-# ------------------------------------------------------------------------------				
+
+	@Slot()
+	def SetLights(self, red: int = 0, green: int = 0, blue: int = 0, white: int = 0):
+		globals.Lights.red = red
+		globals.Lights.green = green
+		globals.Lights.blue = blue
+		globals.Lights.white = white
+
+
+# ------------------------------------------------------------------------------
