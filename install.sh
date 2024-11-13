@@ -10,7 +10,7 @@ sudo apt update
 
 echo ''
 echo -e '\033[93mInstalling prerequisites... \033[0m'
-sudo apt install -y git python3 python3-pip python3-picamera2 ffmpeg libopenblas-dev
+sudo apt install -y git python3 python3-pip python3-picamera2 ffmpeg libopenblas-dev daemontools daemontools-run
 sudo python3 -m venv ~/camera-venv
 sudo ~/camera-venv/bin/pip3 install piexif ffmpeg-python google-api-python-client google-auth-httplib2 google-auth-oauthlib oauth2client moviepy pyside6 evdev
 
@@ -21,6 +21,7 @@ sudo mkdir -p /home/pi/logs
 sudo chmod +rw /home/pi/logs
 sudo sed -i '\|^tmpfs /home/pi/logs|d' /etc/fstab
 sudo sed -i '$ a tmpfs /home/pi/logs tmpfs defaults,noatime,nosuid,size=16m 0 0' /etc/fstab
+sudo systemctl daemon-reload
 sudo mount -a
 
 
@@ -48,7 +49,7 @@ cd ~
 sudo svc -d /etc/service/camera.pro
 sudo rm -Rf /etc/service/camera.pro
 sudo mkdir /etc/service/camera.pro
-sudo mv ~/camera.zero/run.disabled /etc/service/camera.pro/run.disabled
+sudo mv ~/camera.pro/run.disabled /etc/service/camera.pro/run.disabled
 sudo chmod +x /etc/service/camera.pro/run.disabled
 sudo chown -R root:root /etc/service/camera.pro
 echo 'Please see the README file for more information on configuring autostart.'
