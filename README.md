@@ -56,17 +56,28 @@ camera
 
 ---
 
-## Autostart Application
-Want to start the application every time you boot your Raspberry Pi?  Here is how!
+## Autostart
 
-* Review `/etc/systemd/system/camera.service`
-   * If you would like to add any of aforementioned options you may do so by editing the service file.
-* Run `~/camera.pro/install-service.sh`
+### Enable
+
+To enable autostart of the program, execute the following command:
+
+```
+sudo mv /etc/service/camera.pro/run.disabled /etc/service/camera.pro/run
+```
+
+### Disable
+
+To disable autostart of the program, execute the following command:
+
+```
+sudo mv /etc/service/camera.pro/run /etc/service/camera.pro/run.disabled
+```
 
 ---
 
 ## Infrared Cameras
-If you are using an infrared (IR) camera, you will need to modify the Auto White Balance (AWB) mode at boot time.
+If you are using an infrared (IR) camera, you may need to modify the Auto White Balance (AWB) mode at boot time.
 
 This can be achieved by executing `sudo nano /boot/config.txt` and adding the following lines.
 
