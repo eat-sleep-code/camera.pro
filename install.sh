@@ -11,7 +11,8 @@ sudo apt update
 echo ''
 echo -e '\033[93mInstalling prerequisites... \033[0m'
 sudo apt install -y git python3 python3-pip python3-picamera2 ffmpeg libopenblas-dev
-sudo pip3 install piexif ffmpeg-python google-api-python-client google-auth-httplib2 google-auth-oauthlib oauth2client moviepy pyside6 evdev --force --break-system-packages
+sudo python3 -m venv ~/camera-venv
+sudo ~/camera-venv/bin/pip3 install piexif ffmpeg-python google-api-python-client google-auth-httplib2 google-auth-oauthlib oauth2client moviepy pyside6 evdev
 
 
 echo ''
@@ -54,7 +55,7 @@ echo ''
 echo -e '\033[93mSetting up aliases... \033[0m'
 sudo touch ~/.bash_aliases
 sudo sed -i '/\b\(function camera\)\b/d' ~/.bash_aliases
-sudo sed -i '$ a function camera { sudo python3 ~/camera/camera.py "$@"; }' ~/.bash_aliases
+sudo sed -i '$ a function camera { sudo ~/camera-venv/bin/python3 ~/camera/camera.py "$@"; }' ~/.bash_aliases
 echo -e 'You may use \e[1mcamera <options>\e[0m to launch the program.'
 echo ''
 echo 'To use the automatic YouTube upload feature, you will need to update the youtube/config.json.'
