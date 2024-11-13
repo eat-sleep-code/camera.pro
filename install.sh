@@ -10,7 +10,7 @@ sudo apt update
 
 echo ''
 echo -e '\033[93mInstalling prerequisites... \033[0m'
-sudo apt install -y git python3 python3-pip python3-picamera2 ffmpeg libopenblas-dev daemontools daemontools-run
+sudo apt install -y git python3 python3-pip python3-picamera2 ffmpeg libopenblas-dev libatlas-base-dev daemontools daemontools-run
 sudo python3 -m venv ~/camera.pro-venv
 sudo ~/camera.pro-venv/bin/pip3 install piexif ffmpeg-python google-api-python-client google-auth-httplib2 google-auth-oauthlib oauth2client moviepy pyside6 evdev
 
