@@ -60,7 +60,7 @@ echo ''
 echo -e '\033[93mSetting up aliases... \033[0m'
 sudo touch ~/.bash_aliases
 sudo sed -i '/\b\(function camera\)\b/d' ~/.bash_aliases
-sudo sed -i '$ a function camera { sudo ~/camera.pro-venv/bin/python3 ~/camera/camera.py "$@"; }' ~/.bash_aliases
+sudo sed -i '$ a function camera { sudo ~/camera.pro-venv/bin/python3 ~/camera.pro/camera.py "$@"; }' ~/.bash_aliases
 echo -e 'You may use \e[1mcamera <options>\e[0m to launch the program.'
 echo ''
 echo 'To use the automatic YouTube upload feature, you will need to update the youtube/config.json.'
