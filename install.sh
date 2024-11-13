@@ -46,9 +46,11 @@ sudo chown -R $USER:$USER ~/logs
 echo ''
 echo -e '\033[093mSetting up autostart daemon... \033[0m'
 cd ~
+echo 'Removing legacy service instance...'
 sudo svc -d /etc/service/camera.pro
 sudo rm -Rf /etc/service/camera.pro
-sudo mkdir /etc/service/camera.pro
+echo 'Configuring new service instance...'
+sudo mkdir -p /etc/service/camera.pro
 sudo mv ~/camera.pro/run.disabled /etc/service/camera.pro/run.disabled
 sudo chmod +x /etc/service/camera.pro/run.disabled
 sudo chown -R root:root /etc/service/camera.pro
