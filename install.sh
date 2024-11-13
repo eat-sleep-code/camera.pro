@@ -43,11 +43,15 @@ sudo chown -R $USER:$USER ~/logs
 
 
 echo ''
-echo -e '\033[93mCreating Service... \033[0m'
-sudo mv camera.service /etc/systemd/system/camera.service
-sudo chown root:root /etc/systemd/system/camera.service
-sudo chmod +x *.sh 
-echo 'Please see the README file for more information on configuring the service.'
+echo -e '\033[093mSetting up autostart daemon... \033[0m'
+cd ~
+sudo svc -d /etc/service/camera.pro
+sudo rm -Rf /etc/service/camera.pro
+sudo mkdir /etc/service/camera.pro
+sudo mv ~/camera.zero/run.disabled /etc/service/camera.pro/run.disabled
+sudo chmod +x /etc/service/camera.pro/run.disabled
+sudo chown -R root:root /etc/service/camera.pro
+echo 'Please see the README file for more information on configuring autostart.'
 
 
 cd ~
