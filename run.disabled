@@ -1,0 +1,2 @@
+#!/bin/bash
+exec sudo /home/pi/camera.pro-venv/bin/python /home/pi/camera.pro/camera.py
