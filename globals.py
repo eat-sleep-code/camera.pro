@@ -12,11 +12,21 @@ import sys
 
 class Config:
 	def __init__(self):
-		with open('config.json') as configFile:
-			self.configData = json.load(configFile)[0]
-	
+		try:
+			with open('/home/pi/camera.pro/config.json') as configFile:
+				self.configData = json.load(configFile)[0]
+		except FileNotFoundError:
+			raise RuntimeError("Configuration file not found")
+		except json.JSONDecodeError:
+			raise RuntimeError("Configuration file is malformed")
+
 	def __call__(self):
 		return self.configData
+
+	def __getitem__(self, key):
+		if key not in self.configData:
+			raise KeyError(f"Key '{key}' not found in configuration")
+		return self.configData[key]
 	
 
 # ==============================================================================
@@ -34,7 +44,7 @@ class Primary:
 		self.rotation = config['cameras']['primary']['rotation'] or 0
 		self.raw = config['cameras']['primary']['raw'] or True
 		primaryExif = EXIF()
-		primaryExif.fStop = config['cameras']['primary']['exif']['fstop']
+		primaryExif.fStop = config['cameras']['primary']['exif']['fStop']
 		primaryExif.focalLength = config['cameras']['primary']['exif']['focalLength']
 		primaryExif.focalLengthEquivalent = config['cameras']['primary']['exif']['focalLengthEquivalent']	
 		self.exif: EXIF = primaryExif
@@ -54,7 +64,7 @@ class Secondary:
 			self.rotation = config['cameras']['secondary']['rotation'] or 0
 			self.raw = config['cameras']['secondary']['rotation'] or True
 			secondaryExif = EXIF()
-			secondaryExif.fStop = config['cameras']['secondary']['exif']['fstop']
+			secondaryExif.fStop = config['cameras']['secondary']['exif']['fStop']
 			secondaryExif.focalLength = config['cameras']['secondary']['exif']['focalLength']
 			secondaryExif.focalLengthEquivalent = config['cameras']['secondary']['exif']['focalLengthEquivalent']	
 			self.exif: EXIF = secondaryExif
@@ -63,8 +73,9 @@ class Secondary:
 # --------------------------------------------------------------------------
 			
 class Cameras:
+	count: int = len(Picamera2.global_camera_info()) or 0
+ 
 	def __init__(self):
-		self.count: int = len(Picamera2.global_camera_info()) or 0
 		self.Primary = Primary()
 		self.Secondary = Secondary()
 
