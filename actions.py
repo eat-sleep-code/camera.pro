@@ -4,332 +4,273 @@ from capture.video import Video
 from file import File
 from PySide6.QtCore import Slot
 import globals
-import fractions
 import threading
 
 console = Console()
 
 class Actions:
 
-# ------------------------------------------------------------------------------				
+# ------------------------------------------------------------------------------
 
 	@Slot()
 	def CaptureImage(self):
-		stereoCaptureEnabled: bool = globals.State.stereoCaptureEnabled
-		capturePrimaryThread = threading.Thread(target=Still().capture('primary', File.GetPath(True, False, 1), globals.Primary.rotation, globals.Primary.raw))
+		capturePrimaryThread = threading.Thread(
+			target=Still.capture,
+			args=('primary', File.GetPath(True, False, 1), globals.primary.rotation, globals.primary.raw)
+		)
 		capturePrimaryThread.start()
-		if stereoCaptureEnabled == True:
-			captureSecondaryThread = threading.Thread(target=Still().capture('secondary', File.GetPath(True, False, 2), globals.Secondary.rotation, globals.Secondary.raw))
+		if globals.state.stereoCaptureEnabled and globals.secondary is not None:
+			captureSecondaryThread = threading.Thread(
+				target=Still.capture,
+				args=('secondary', File.GetPath(True, False, 2), globals.secondary.rotation, globals.secondary.raw)
+			)
 			captureSecondaryThread.start()
 
-	
-# ------------------------------------------------------------------------------				
+
+# ------------------------------------------------------------------------------
 
 	@Slot()
 	def CaptureVideo(self):
-		stereoCaptureEnabled: bool = globals.State.stereoCaptureEnabled
-		capturePrimaryThread = threading.Thread(target=Video().capture('primary', File.GetPath(True, False, 1), globals.Primary.rotation))
+		capturePrimaryThread = threading.Thread(
+			target=Video.capture,
+			args=('primary', File.GetPath(True, True, 1), globals.primary.rotation)
+		)
 		capturePrimaryThread.start()
-		if stereoCaptureEnabled == True:
-			captureSecondaryThread = threading.Thread(target=Video().capture('secondary', File.GetPath(True, False, 2), globals.Secondary.rotation))
+		if globals.state.stereoCaptureEnabled and globals.secondary is not None:
+			captureSecondaryThread = threading.Thread(
+				target=Video.capture,
+				args=('secondary', File.GetPath(True, True, 2), globals.secondary.rotation)
+			)
 			captureSecondaryThread.start()
 
-# ------------------------------------------------------------------------------				
-
+# ------------------------------------------------------------------------------
 
 	@Slot()
 	def SetStereo(self):
-		stereoCaptureEnabled: bool = globals.State.stereoCaptureEnabled
-		if globals.Cameras.count > 1:
-			if stereoCaptureEnabled == False:
-				#TODO: // Start Camera B
-				stereoCaptureEnabled = True
-			else:
-				#TODO: // Stop Camera B
-				stereoCaptureEnabled = False
+		if globals.cameras.count > 1 and globals.secondary is not None:
+			globals.state.stereoCaptureEnabled = not globals.state.stereoCaptureEnabled
 		else:
-			stereoCaptureEnabled = False
-		globals.State.stereoCaptureEnabled = stereoCaptureEnabled
-		
+			globals.state.stereoCaptureEnabled = False
 
-# ------------------------------------------------------------------------------				
 
+# ------------------------------------------------------------------------------
 
 	@Slot()
 	def SetShutter(self, direction: str):
-		shutter = globals.State.shutter
-		shutterShort: int = globals.State.shutterShort
-		shutterLong: int = globals.State.shutterLong
-		shutterLongThreshold: int = globals.State.shutterLongThreshold
-		defaultFramerate: int = globals.State.defaultFramerate
+		shutter = globals.state.shutter
+		shutterShort: int = globals.state.shutterShort
+		shutterLong: int = globals.state.shutterLong
+		shutterLongThreshold: int = globals.state.shutterLongThreshold
+		defaultFramerate: int = globals.state.defaultFramerate
 
 		if direction == 'up':
+			# Faster shutter = shorter exposure = smaller number
+			if shutter == 0:
+				shutter = shutterLong
+			elif shutter > shutterShort:
+				shutter = max(shutterShort, int(shutter / 1.5))
+		else:
+			# Slower shutter = longer exposure = larger number
 			if shutter == 0:
 				shutter = shutterShort
-			elif shutter > shutterShort and shutter <= shutterLong:					
-				shutter = int(shutter / 1.5)
-		else:
-			if shutter == 0:						
-				shutter = shutterLong
-			elif shutter < shutterLong and shutter >= shutterShort:					
-				shutter = int(shutter * 1.5)
-			elif shutter == shutterShort:
-				shutter = 0
-
-
-		if str(shutter).lower() == 'auto' or str(shutter) == '0':
-			shutter = 0
-		else:
-			shutter = int(float(shutter))
-		
+			elif shutter < shutterLong:
+				shutter = min(shutterLong, int(shutter * 1.5))
+			elif shutter >= shutterLong:
+				shutter = 0  # wrap back to auto
 
 		try:
-			globals.State.shutter = shutter
-			if globals.Primary.module.framerate == defaultFramerate and shutter > shutterLongThreshold:
-				globals.Primary.module.framerate=fractions.Fraction(5, 1000)
-			elif globals.Primary.module.framerate != shutterLongThreshold and shutter <= shutterLongThreshold:
-				globals.Primary.module.framerate = defaultFramerate
-		
-			if shutter == 0:
-				globals.Primary.controls.ExposureTime = 0
+			globals.state.shutter = shutter
+
+			# Adjust framerate for long exposure
+			if shutter == 0 or shutter <= shutterLongThreshold:
+				# Restore normal framerate
+				frame_us = int(1_000_000 / defaultFramerate)
+				globals.primary.module.set_controls({"FrameDurationLimits": (frame_us, frame_us)})
 			else:
-				globals.Primary.controls.ExposureTime = shutter * 1000
+				# Slow framerate for long exposure (5fps max)
+				min_frame_us = int(shutter * 1.1)
+				globals.primary.module.set_controls({"FrameDurationLimits": (min_frame_us, min_frame_us)})
+
+			if shutter == 0:
+				globals.primary.module.set_controls({"ExposureTime": 0, "AeEnable": True})
+			else:
+				globals.primary.module.set_controls({"ExposureTime": shutter, "AeEnable": False})
+
 		except Exception as ex:
-			globals.State.lastMessage = 'Invalid Shutter Speed! ' + str(shutter)
-			console.warn(globals.State.lastMessage + str(ex))
-			
+			globals.state.lastMessage = 'Invalid Shutter Speed! ' + str(shutter)
+			console.warn(globals.state.lastMessage + str(ex))
 
-# ------------------------------------------------------------------------------				
 
+# ------------------------------------------------------------------------------
 
 	@Slot()
 	def SetISO(self, direction: str):
-		iso: int = globals.State.iso
-		isoMin: int = globals.State.isoMin
-		isoMax: int = globals.State.isoMax
-
+		iso: int = globals.state.iso
+		isoMin: int = globals.state.isoMin
+		isoMax: int = globals.state.isoMax
 
 		if direction == 'up':
 			if iso == 0:
 				iso = isoMin
-			elif iso >= isoMin and iso < isoMax:					
-				iso = int(iso * 2)
+			elif iso < isoMax:
+				iso = min(isoMax, int(iso * 2))
 		else:
 			if iso == 0:
 				iso = isoMax
-			elif iso <= isoMax and iso > isoMin:					
-				iso = int(iso / 2)
+			elif iso > isoMin:
+				iso = max(isoMin, int(iso / 2))
 			elif iso == isoMin:
-				iso = 0
+				iso = 0  # back to auto
 
 		try:
-			if str(iso).lower() == 'auto' or str(iso) == '0':
-				globals.Primary.controls.AeEnable = 1
-				iso = 0
-			else: 
-				globals.Primary.controls.AeEnable = 0
-				iso = int(iso)
-				if iso < isoMin:	
-					iso = isoMin
-				elif iso > isoMax:
-					iso = isoMax	
+			globals.state.iso = iso
+			if iso == 0:
+				globals.primary.module.set_controls({"AeEnable": True, "AnalogueGain": 0.0})
+			else:
+				globals.primary.module.set_controls({"AeEnable": False, "AnalogueGain": iso / 100.0})
 		except Exception as ex:
-			globals.State.lastMessage = 'Invalid Auto Exposure Setting! ' + str(iso)
-			console.warn(globals.State.lastMessage + str(ex))
-
-		try:	
-			globals.State.iso = iso
-			analogGain = iso/100
-			globals.Primary.controls.AnalogueGain = analogGain
-		except Exception as ex:
-			globals.State.lastMessage = 'Invalid ISO! ' + str(iso)
-			console.warn(globals.State.lastMessage + str(ex))
+			globals.state.lastMessage = 'Invalid ISO! ' + str(iso)
+			console.warn(globals.state.lastMessage + str(ex))
 
 
-# ------------------------------------------------------------------------------				
-
+# ------------------------------------------------------------------------------
 
 	@Slot()
 	def SetExposureMode(self):
-		exposureMode: str =  globals.State.exposureMode
-		if exposureMode == 'Normal':
-			exposureMode = 'Short'
-		elif exposureMode == 'Short':
-			exposureMode = 'Long'
-		elif exposureMode == 'Long':
-		#	exposureMode = 'Custom'
-		#elif exposureMode == 'Custom':
-			exposureMode = 'Disabled'
-		else:
-			exposureMode = 'Normal'
+		exposureMode: str = globals.state.exposureMode
+		modes = ['Normal', 'Short', 'Long', 'Disabled']
+		idx = modes.index(exposureMode) if exposureMode in modes else 0
+		exposureMode = modes[(idx + 1) % len(modes)]
 
-		try:	
+		try:
+			globals.state.exposureMode = exposureMode
 			if exposureMode == 'Disabled':
-				globals.Primary.module.AeExposureMode = 'Normal'
-				globals.Primary.module.AeEnable = False
+				globals.primary.module.set_controls({"AeEnable": False})
 			else:
-				globals.Primary.module.AeEnable = True
-				globals.Primary.module.AeExposureMode = exposureMode
-		except Exception as ex: 
-			globals.State.lastMessage = 'Invalid Auto Exposure Mode Setting! ' + str(exposureMode)
-			console.warn(globals.State.lastMessage + str(ex))
+				globals.primary.module.set_controls({"AeEnable": True, "AeExposureMode": exposureMode})
+		except Exception as ex:
+			globals.state.lastMessage = 'Invalid Exposure Mode! ' + str(exposureMode)
+			console.warn(globals.state.lastMessage + str(ex))
 
 
-# ------------------------------------------------------------------------------				
-
+# ------------------------------------------------------------------------------
 
 	@Slot()
 	def SetMeteringMode(self):
-		meteringMode: str =  globals.State.meteringMode
-		if meteringMode == 'CentreWeighted':
-			meteringMode = 'Spot'
-		elif meteringMode == 'Spot':
-			meteringMode = 'Matrix'
-		else:
-			meteringMode = 'CentreWeighted'
+		meteringMode: str = globals.state.meteringMode
+		modes = ['CentreWeighted', 'Spot', 'Matrix']
+		idx = modes.index(meteringMode) if meteringMode in modes else 0
+		meteringMode = modes[(idx + 1) % len(modes)]
 
-		try:	
-			globals.Primary.module.AeMeteringMode = meteringMode
-		except Exception as ex: 
-			globals.State.lastMessage = 'Invalid Auto Exposure Metering Mode Setting! ' + str(meteringMode)
-			console.warn(globals.State.lastMessage + str(ex))
+		try:
+			globals.state.meteringMode = meteringMode
+			globals.primary.module.set_controls({"AeMeteringMode": meteringMode})
+		except Exception as ex:
+			globals.state.lastMessage = 'Invalid Metering Mode! ' + str(meteringMode)
+			console.warn(globals.state.lastMessage + str(ex))
 
 
-# ------------------------------------------------------------------------------				
-
+# ------------------------------------------------------------------------------
 
 	@Slot()
 	def SetExposureValue(self, direction: str):
-		exposureValue: int = globals.State.exposureValue
-		exposureValueMin: int = globals.State.exposureValueMin
-		exposureValueMax: int = globals.State.exposureValueMax
+		exposureValue: int = globals.state.exposureValue
+		exposureValueMin: int = globals.state.exposureValueMin
+		exposureValueMax: int = globals.state.exposureValueMax
 
 		if direction == 'up':
-			if exposureValue < exposureValueMax:					
-				exposureValue = int(exposureValue + 1)
+			if exposureValue < exposureValueMax:
+				exposureValue += 1
 		else:
-			if exposureValue > exposureValueMin:					
-				exposureValue = int(exposureValue - 1)
-		
-		exposureValuePrefix = '+/-'
+			if exposureValue > exposureValueMin:
+				exposureValue -= 1
+
 		if exposureValue > 0:
-			exposureValuePrefix = '+'
+			globals.state.exposureValuePrefix = '+'
 		elif exposureValue < 0:
-			exposureValuePrefix = '-'
+			globals.state.exposureValuePrefix = '-'
+		else:
+			globals.state.exposureValuePrefix = '+/-'
 
 		try:
-			globals.State.exposureValue = exposureValue
-			globals.Primary.module.ExposureValue = exposureValue
-			globals.State.exposureValuePrefix = exposureValuePrefix
-			
-		except Exception as ex: 
-			globals.State.lastMessage = 'Invalid Exposure Compensation Setting! ' + str(exposureValue)
-			console.warn(globals.State.lastMessage + str(ex))
-			
+			globals.state.exposureValue = exposureValue
+			globals.primary.module.set_controls({"ExposureValue": float(exposureValue)})
+		except Exception as ex:
+			globals.state.lastMessage = 'Invalid EV! ' + str(exposureValue)
+			console.warn(globals.state.lastMessage + str(ex))
 
-# ------------------------------------------------------------------------------				
 
+# ------------------------------------------------------------------------------
 
 	@Slot()
-	def SetBracket(self, direction: str):    
-		bracket: int = globals.State.bracket
-		bracketLow: int = globals.State.bracketLow
-		bracketHigh: int = globals.State.bracketHigh
-		exposureValueMin: int = globals.State.exposureValueMin
-		exposureValueMax: int = globals.State.exposureValueMax
+	def SetBracket(self, direction: str):
+		bracket: int = globals.state.bracket
+		exposureValueMin: int = globals.state.exposureValueMin
+		exposureValueMax: int = globals.state.exposureValueMax
 
 		if direction == 'up':
-			if bracket < exposureValueMax:	
-				bracket = int(bracket + 1)
+			if bracket < exposureValueMax:
+				bracket += 1
 		else:
-			if bracket > 0:					
-				bracket = int(bracket - 1)
+			if bracket > 0:
+				bracket -= 1
 
 		try:
-			bracketLow = globals.Primary.controls.ExposureValue - bracket
-			if bracketLow < exposureValueMin:
-				bracketLow = exposureValueMin
-			bracketHigh = globals.Primary.controls.ExposureValue + bracket
-			if bracketHigh > exposureValueMax:
-				bracketHigh = exposureValueMax
-
-			globals.State.bracketLow = bracketLow
-			globals.State.bracketHigh = bracketHigh
-		
+			globals.state.bracket = bracket
+			base_ev = globals.state.exposureValue
+			globals.state.bracketLow = max(exposureValueMin, base_ev - bracket)
+			globals.state.bracketHigh = min(exposureValueMax, base_ev + bracket)
 		except Exception as ex:
-			globals.State.lastMessage = 'Invalid Exposure Bracketing Value! ' + str(bracket)
-			console.warn(globals.State.lastMessage + str(ex))
+			globals.state.lastMessage = 'Invalid Bracket! ' + str(bracket)
+			console.warn(globals.state.lastMessage + str(ex))
 
 
-# ------------------------------------------------------------------------------				
-
+# ------------------------------------------------------------------------------
 
 	@Slot()
 	def SetAWBMode(self):
-		awbMode: str = globals.State.awbMode 
-		if awbMode == 'Auto':
-			awbMode = 'Tungsten'
-		elif awbMode == 'Tungsten':
-			awbMode = 'Fluorescent'
-		elif awbMode == 'Fluorescent':
-			awbMode = 'Indoor'
-		elif awbMode == 'Indoor':
-			awbMode = 'Daylight'
-		elif awbMode == 'Daylight':
-			awbMode = 'Cloudy'
-		elif awbMode == 'Cloudy':
-		#	awbMode = 'Custom'
-		#elif awbMode == 'Custom':
-			awbMode = 'Disabled'
-		else:
-			awbMode = 'Auto'
-		try:	
+		awbMode: str = globals.state.awbMode
+		modes = ['Auto', 'Tungsten', 'Fluorescent', 'Indoor', 'Daylight', 'Cloudy', 'Disabled']
+		idx = modes.index(awbMode) if awbMode in modes else 0
+		awbMode = modes[(idx + 1) % len(modes)]
+
+		try:
+			globals.state.awbMode = awbMode
 			if awbMode == 'Disabled':
-				globals.Primary.module.AwbMode = 'Auto'
-				globals.Primary.module.AwbEnable = False
+				globals.primary.module.set_controls({"AwbEnable": False})
 			else:
-				globals.Primary.module.AwbEnable = True
-				globals.Primary.module.AwbMode = awbMode
-		except Exception as ex: 
-			globals.State.lastMessage = 'Invalid Auto Exposure Metering Mode Setting! ' + str(awbMode)
-			console.warn(globals.State.lastMessage + str(ex))
+				globals.primary.module.set_controls({"AwbEnable": True, "AwbMode": awbMode})
+		except Exception as ex:
+			globals.state.lastMessage = 'Invalid AWB Mode! ' + str(awbMode)
+			console.warn(globals.state.lastMessage + str(ex))
 
 
-# ------------------------------------------------------------------------------	
-
+# ------------------------------------------------------------------------------
 
 	@Slot()
 	def SetTimer(self):
-		timer: int = globals.State.timer 
-		if timer == 0:
-			timer = 3
-		elif timer == 3:
-			timer = 5
-		elif timer == 5:
-			timer = 10
-		else:
-			timer = 0
-		
-		globals.State.timer = timer
+		timer: int = globals.state.timer
+		sequence = [0, 3, 5, 10]
+		idx = sequence.index(timer) if timer in sequence else 0
+		globals.state.timer = sequence[(idx + 1) % len(sequence)]
 
 
-# ------------------------------------------------------------------------------			
-
+# ------------------------------------------------------------------------------
 
 	@Slot()
 	def ToggleSettings(self):
+		# Handled directly by the UI layer
 		pass
 
-				
-# ------------------------------------------------------------------------------
 
+# ------------------------------------------------------------------------------
 
 	@Slot()
 	def SetLights(self, red: int = 0, green: int = 0, blue: int = 0, white: int = 0):
-		globals.Lights.red = red
-		globals.Lights.green = green
-		globals.Lights.blue = blue
-		globals.Lights.white = white
+		globals.state.lights.red = red
+		globals.state.lights.green = green
+		globals.state.lights.blue = blue
+		globals.state.lights.white = white
 
 
 # ------------------------------------------------------------------------------

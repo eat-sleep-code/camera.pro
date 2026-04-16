@@ -10,35 +10,34 @@ class Video:
 	@staticmethod
 	def capture(camera: str, filePath: str, rotate: int):
 
-		if camera == 'secondary':
-			module =  globals.Secondary.module
-			videoConfiguration = globals.Secondary.videoConfiguration
-			isRecording: bool = globals.Secondary.isRecording
+		if camera == 'secondary' and globals.secondary is not None:
+			module = globals.secondary.module
+			videoConfiguration = globals.secondary.videoConfiguration
+			previewConfiguration = globals.secondary.previewConfiguration
+			isRecording: bool = globals.secondary.isRecording
 		else:
-			module = globals.Primary.module
-			videoConfiguration = globals.Primary.videoConfiguration
+			module = globals.primary.module
+			videoConfiguration = globals.primary.videoConfiguration
+			previewConfiguration = globals.primary.previewConfiguration
+			isRecording: bool = globals.primary.isRecording
 
-
-		if isRecording == False:
+		if not isRecording:
+			console.info('Capturing video: ' + filePath)
 			module.stop()
-			if camera == 'secondary':
-				globals.Secondary.isRecording = True
-			else:
-				globals.Primary.isRecording = True
-			filePath = filePath
-			module.resolution = (1920, 1080)
-			console.info('Capturing video: ' + filePath + '\n')
 			module.configure(videoConfiguration)
 			encoder = H264Encoder()
 			module.start_recording(encoder, filePath, quality=Quality.VERY_HIGH)
-
-		else:
-			
-			module.stop_recording()
-			if camera == 'secondary':
-				globals.Secondary.isRecording = False
+			if camera == 'secondary' and globals.secondary is not None:
+				globals.secondary.isRecording = True
 			else:
-				globals.Primary.isRecording = False
-			console.info('Capture complete \n')
-			camera.start()
-
+				globals.primary.isRecording = True
+		else:
+			module.stop_recording()
+			if camera == 'secondary' and globals.secondary is not None:
+				globals.secondary.isRecording = False
+			else:
+				globals.primary.isRecording = False
+			console.info('Video capture complete.')
+			# Restart preview
+			module.configure(previewConfiguration)
+			module.start()

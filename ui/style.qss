@@ -1,9 +1,98 @@
-QPushButton {
-    background-color: rgba(0, 0, 0, 0.1);
-	color: rgba(255, 255, 255, 0.9);
+/* ============================================================
+   Camera PRO — Qt Stylesheet
+   Dark, modern camera UI
+   ============================================================ */
+
+/* Global reset */
+* {
+    outline: none;
+    border: none;
+    font-family: 'Inter', 'SF Pro Display', 'Segoe UI', 'Helvetica Neue', sans-serif;
 }
 
-QPushButton:active 
-{
-	color: rgba(255, 255, 255, 1.0);
+QMainWindow,
+QWidget {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+
+/* ============================================================
+   Bottom bar mode buttons  (objectName: modeBtn_photo, modeBtn_video)
+   ============================================================ */
+
+QPushButton[objectName^="modeBtn_"] {
+    background: rgba(255, 255, 255, 0.10);
+    color: rgba(255, 255, 255, 0.60);
+    border-radius: 8px;
+    padding: 0 16px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    min-width: 90px;
+}
+
+QPushButton[objectName^="modeBtn_"]:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+QPushButton[objectName^="modeBtn_"][selected="true"] {
+    background: rgba(255, 200, 0, 0.85);
+    color: rgba(0, 0, 0, 0.90);
+}
+
+
+/* ============================================================
+   Program mode buttons  (objectName: progBtn_auto, progBtn_manual)
+   ============================================================ */
+
+QPushButton[objectName^="progBtn_"] {
+    background: rgba(255, 255, 255, 0.10);
+    color: rgba(255, 255, 255, 0.55);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+QPushButton[objectName^="progBtn_"]:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+QPushButton[objectName^="progBtn_"][selected="true"] {
+    background: rgba(80, 200, 255, 0.80);
+    color: rgba(0, 0, 0, 0.90);
+}
+
+
+/* ============================================================
+   Settings panel
+   ============================================================ */
+
+QPushButton[objectName="settingsClose"] {
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.80);
+    border-radius: 8px;
+    padding: 8px 0;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+QPushButton[objectName="settingsClose"]:hover {
+    background: rgba(255, 255, 255, 0.22);
+    color: rgba(255, 255, 255, 1.0);
+}
+
+
+/* ============================================================
+   Scrollbars — hide them (touch UI, no scrollbars needed)
+   ============================================================ */
+
+QScrollBar:vertical,
+QScrollBar:horizontal {
+    width: 0;
+    height: 0;
+    background: transparent;
 }

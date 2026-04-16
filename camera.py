@@ -12,20 +12,28 @@ version = '2024.02.24'
 globals.initialize()
 console = Console()
 echo = Echo()
-touchscreen = Touchscreen()
-remote = Remote()
 
 # ==============================================================================
+# Detect autofocus capability on each camera
 
 try:
-	globals.Primary.module.set_controls({"AfMode": controls.AfModeEnum.Continuous})
-except Exception as ex:
+	globals.primary.module.set_controls({"AfMode": controls.AfModeEnum.Continuous})
+	globals.primary.hasAutofocus = True
+except Exception:
 	console.info('Camera 1 does not support autofocus.')
-	pass
 
-if globals.Cameras.count > 1:
+if globals.cameras.count > 1 and globals.secondary is not None:
 	try:
-		globals.Primary.module.set_controls({"AfMode": controls.AfModeEnum.Continuous})
-	except Exception as ex:
+		globals.secondary.module.set_controls({"AfMode": controls.AfModeEnum.Continuous})
+		globals.secondary.hasAutofocus = True
+	except Exception:
 		console.info('Camera 2 does not support autofocus.')
-		pass
+
+# ==============================================================================
+# Start camera preview and launch UI
+
+globals.primary.module.configure(globals.primary.previewConfiguration)
+globals.primary.module.start()
+
+touchscreen = Touchscreen()
+remote = Remote()

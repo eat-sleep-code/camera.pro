@@ -10,7 +10,7 @@ sudo apt update
 
 echo ''
 echo -e '\033[93mInstalling prerequisites... \033[0m'
-sudo apt install -y git python3 python3-pip python3-picamera2 ffmpeg libopenblas-dev libatlas-base-dev daemontools daemontools-run
+sudo apt install -y git python3 python3-pip python3-picamera2 ffmpeg libopenblas-dev libatlas-base-dev daemontools daemontools-run wget
 sudo python3 -m venv --system-site-packages ~/camera.pro-venv
 sudo ~/camera.pro-venv/bin/pip3 install piexif ffmpeg-python google-api-python-client google-auth-httplib2 google-auth-oauthlib oauth2client moviepy pyside6 evdev
 
@@ -23,6 +23,15 @@ sudo sed -i '\|^tmpfs /home/pi/logs|d' /etc/fstab
 sudo sed -i '$ a tmpfs /home/pi/logs tmpfs defaults,noatime,nosuid,size=16m 0 0' /etc/fstab
 sudo systemctl daemon-reload
 sudo mount -a
+
+
+echo ''
+echo -e '\033[93mDownloading icon font (Material Symbols Rounded)... \033[0m'
+mkdir -p ~/camera.pro/ui
+wget -q --show-progress \
+  "https://github.com/google/material-symbols/raw/main/variablefont/MaterialSymbolsRounded%5BFILL%2CGRAD%2Cops%2Cwght%5D.ttf" \
+  -O ~/camera.pro/ui/MaterialSymbolsRounded.ttf \
+  || echo -e '\033[93mWarning: could not download icon font. UI will use text labels as fallback.\033[0m'
 
 
 echo ''

@@ -429,7 +429,7 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
 				console.warn('Request failed: ' + str(ex))
 				pass
 		elif self.path == '/status':
-			content = globals.statusDictionary['message']
+			content = globals.state.lastMessage
 			if len(content) == 0:
 				content = "Ready"
 			contentEncoded = content.encode('utf-8')
