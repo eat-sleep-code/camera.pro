@@ -10,7 +10,7 @@ import sys
 # display directly and works on Pi OS Lite with a connected screen.
 # Users can override by setting QT_QPA_PLATFORM in the environment beforehand.
 if 'QT_QPA_PLATFORM' not in os.environ:
-    os.environ['QT_QPA_PLATFORM'] = 'eglfs'
+    os.environ['QT_QPA_PLATFORM'] = 'linuxfb'
 
 # Also suppress noisy libcamera log output.
 os.environ.setdefault('LIBCAMERA_LOG_LEVELS', '3')

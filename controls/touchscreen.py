@@ -30,11 +30,12 @@ from PySide6.QtGui import (
     QPainter, QPen, QColor, QFont, QPixmap,
     QPainterPath, QBrush,
 )
-from picamera2.previews.qt import QPicamera2
+from picamera2 import MappedArray
 from actions import Actions
 import globals
 import os
 import sys
+import threading
 
 # ---------------------------------------------------------------------------
 # Icons via qtawesome (Material Design Icons bundled in the package)
@@ -725,21 +726,29 @@ class CameraWindow(QMainWindow):
         self._W = W
         self._H = H
 
-        # Configure camera before creating the preview widget.
-        globals.primary.module.configure(globals.primary.previewConfiguration)
-
-        # QPicamera2 uses normal Qt software rendering — no EGL/OpenGL context
-        # needed, composites correctly with child overlay widgets.
-        # It must be the direct central widget (not a child of another container).
-        self._preview = QPicamera2(
-            globals.primary.module,
-            width=W, height=H,
-            keep_ar=False,
-        )
+        # Use a plain QLabel as the viewfinder surface.
+        # This avoids QPicamera2 / QGlPicamera2 entirely — no EGL, no
+        # platform-plugin dependency.  Camera frames are delivered via
+        # picamera2's pre_callback into a thread-safe buffer and painted
+        # into the label by a QTimer every ~33 ms.
+        self._preview = QLabel(self)
+        self._preview.setFixedSize(W, H)
+        self._preview.setAlignment(Qt.AlignCenter)
         self._preview.setStyleSheet('background: black;')
         self.setCentralWidget(self._preview)
 
-        # Start camera now that the preview widget is registered.
+        # Thread-safe frame buffer — written by camera thread, read by Qt thread.
+        self._frame_lock = threading.Lock()
+        self._latest_frame = None
+
+        def _on_camera_frame(request):
+            with MappedArray(request, 'main') as m:
+                with self._frame_lock:
+                    self._latest_frame = m.array.copy()
+
+        # Configure and start the camera.
+        globals.primary.module.configure(globals.primary.previewConfiguration)
+        globals.primary.module.pre_callback = _on_camera_frame
         globals.primary.module.start()
 
         # Enable continuous AF now that the camera is running.
@@ -755,7 +764,8 @@ class CameraWindow(QMainWindow):
         vp_y = BAR_H
         vp_h = H - BAR_H * 2 - 12
 
-        # All overlays are children of self._preview so they composite on top.
+        # All overlays are children of self._preview — normal QWidget children
+        # render on top of the label's pixmap with no compositing issues.
         self._top_bar = TopBar(W, self._preview)
         self._top_bar.setGeometry(0, 0, W, BAR_H)
         self._top_bar.raise_()
@@ -768,12 +778,10 @@ class CameraWindow(QMainWindow):
         self._right.setGeometry(W - PANEL_W, vp_y, PANEL_W, vp_h)
         self._right.raise_()
 
-        # AF focus box (covers the viewfinder area between the panels)
         self._focus_box = FocusBox(self._preview)
         self._focus_box.setGeometry(PANEL_W, vp_y, W - PANEL_W * 2, vp_h)
         self._focus_box.raise_()
 
-        # If camera has AF, show a default centre focus box
         if globals.primary.hasAutofocus:
             fw, fh = 80, 60
             cx = (W - PANEL_W * 2) // 2 - fw // 2
@@ -784,19 +792,45 @@ class CameraWindow(QMainWindow):
         self._bottom.setGeometry(0, H - BAR_H - 12, W, BAR_H + 12)
         self._bottom.raise_()
 
-        # Settings panel (initially hidden)
         self._settings_panel = SettingsPanel(W // 2, vp_h, self._preview)
         self._settings_panel.setGeometry(W // 4, vp_y, W // 2, vp_h)
         self._settings_panel.hide()
         self._settings_panel.raise_()
 
-        # Tap-to-focus on the exposed viewfinder area
         self._preview.mousePressEvent = self._on_viewfinder_tap
 
-        # Refresh timer: update labels every 500ms
+        # Frame paint timer (~30 fps)
+        self._frame_timer = QTimer(self)
+        self._frame_timer.timeout.connect(self._paint_frame)
+        self._frame_timer.start(33)
+
+        # UI label refresh timer (500 ms)
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._refresh_ui)
         self._timer.start(500)
+
+    def _paint_frame(self):
+        """Copy the latest camera frame into the preview QLabel."""
+        with self._frame_lock:
+            frame = self._latest_frame
+        if frame is None:
+            return
+        try:
+            from PySide6.QtGui import QImage
+            h, w = frame.shape[:2]
+            stride = frame.strides[0]
+            # picamera2 preview default is BGR888; swap to RGB for QImage
+            fmt = QImage.Format_RGB888
+            if frame.shape[2] == 4:
+                fmt = QImage.Format_RGBX8888
+            qimg = QImage(frame.data, w, h, stride, fmt).rgbSwapped()
+            self._preview.setPixmap(
+                QPixmap.fromImage(qimg).scaled(
+                    self._W, self._H, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                )
+            )
+        except Exception:
+            pass
 
     def _on_viewfinder_tap(self, event):
         if not globals.primary.hasAutofocus:
