@@ -1,4 +1,20 @@
+import os
 import sys
+
+# ---------------------------------------------------------------------------
+# Qt platform plugin — must be set before any Qt import.
+#
+# On Pi OS Lite (no X11 / Wayland desktop), Qt's default xcb plugin cannot
+# connect to a display server, so QApplication silently ends up with a null
+# internal qApp pointer.  Force 'eglfs' which drives the framebuffer / KMS
+# display directly and works on Pi OS Lite with a connected screen.
+# Users can override by setting QT_QPA_PLATFORM in the environment beforehand.
+if 'QT_QPA_PLATFORM' not in os.environ:
+    os.environ['QT_QPA_PLATFORM'] = 'eglfs'
+
+# Also suppress noisy libcamera log output.
+os.environ.setdefault('LIBCAMERA_LOG_LEVELS', '3')
+
 from PySide6.QtWidgets import QApplication
 
 # QApplication must be the very first Qt object created — before any import
