@@ -712,7 +712,9 @@ class CameraWindow(QMainWindow):
         container.setStyleSheet('background: black;')
         self.setCentralWidget(container)
 
-        # Camera preview (fills container)
+        # Camera preview — must be created before camera is started so that
+        # QGlPicamera2 can register its frame callback first.
+        globals.primary.module.configure(globals.primary.previewConfiguration)
         self._preview = QGlPicamera2(
             globals.primary.module,
             width=W, height=H,
@@ -720,6 +722,17 @@ class CameraWindow(QMainWindow):
             parent=container,
         )
         self._preview.setGeometry(0, 0, W, H)
+        globals.primary.module.start()
+
+        # Enable continuous AF now that the camera is running
+        if globals.primary.hasAutofocus:
+            try:
+                from libcamera import controls as lc
+                globals.primary.module.set_controls(
+                    {"AfMode": lc.AfModeEnum.Continuous}
+                )
+            except Exception:
+                pass
 
         vp_y = BAR_H
         vp_h = H - BAR_H * 2 - 12
