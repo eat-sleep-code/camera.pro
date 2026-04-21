@@ -38,12 +38,14 @@ import sys
 
 # ---------------------------------------------------------------------------
 # Icons via qtawesome (Material Design Icons bundled in the package)
+#
+# qtawesome calls QFontDatabase.addApplicationFont() at import time, which
+# requires a QApplication to already exist.  We import it lazily inside
+# get_icon_pixmap() — the first call after QApplication is created in
+# Touchscreen.__init__ — so the top-level import never runs early.
 
-try:
-    import qtawesome as qta
-    _QTA_AVAILABLE = True
-except ImportError:
-    _QTA_AVAILABLE = False
+_qta = None          # populated on first call to get_icon_pixmap()
+_QTA_AVAILABLE = None  # None = not yet checked, True/False after first use
 
 # Logical name → Material Design Icons id (qtawesome 'mdi' set)
 _QTA_ICONS = {
@@ -85,12 +87,26 @@ _ICON_FALLBACK = {
 
 
 def get_icon_pixmap(name: str, size: int = 24, color: QColor = None) -> QPixmap:
-    """Return a QPixmap for the named icon."""
+    """Return a QPixmap for the named icon.
+
+    qtawesome is imported here (not at module level) so that QApplication
+    already exists when qtawesome registers its bundled fonts.
+    """
+    global _qta, _QTA_AVAILABLE
     if color is None:
         color = C_TEXT
+    # Lazy import — safe because QApplication exists by the time any
+    # widget calls paintEvent or get_icon_pixmap().
+    if _QTA_AVAILABLE is None:
+        try:
+            import qtawesome as _qta_module
+            _qta = _qta_module
+            _QTA_AVAILABLE = True
+        except ImportError:
+            _QTA_AVAILABLE = False
     if _QTA_AVAILABLE and name in _QTA_ICONS:
         try:
-            ico = qta.icon(_QTA_ICONS[name], color=color.name())
+            ico = _qta.icon(_QTA_ICONS[name], color=color.name())
             return ico.pixmap(QSize(size, size))
         except Exception:
             pass
