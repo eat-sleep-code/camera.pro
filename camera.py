@@ -4,13 +4,18 @@ import sys
 # ---------------------------------------------------------------------------
 # Qt platform plugin — must be set before any Qt import.
 #
-# On Pi OS Lite (no X11 / Wayland desktop), Qt's default xcb plugin cannot
-# connect to a display server, so QApplication silently ends up with a null
-# internal qApp pointer.  Force 'eglfs' which drives the framebuffer / KMS
-# display directly and works on Pi OS Lite with a connected screen.
+# On Pi OS Lite (no X11 / Wayland desktop), Qt's xcb plugin can't connect
+# to a display server and eglfs_kms fails on the Pi 5 GPU stack.
+# 'linuxfb' drives the framebuffer directly and works reliably on Pi OS Lite.
 # Users can override by setting QT_QPA_PLATFORM in the environment beforehand.
 if 'QT_QPA_PLATFORM' not in os.environ:
     os.environ['QT_QPA_PLATFORM'] = 'linuxfb'
+
+# Enable evdev touch input on linuxfb (no desktop display server to handle it).
+# Qt will auto-detect the touch device; override QT_QPA_EVDEV_TOUCHSCREEN_PARAMETERS
+# in the environment if you need to pin a specific device path, e.g.:
+#   export QT_QPA_EVDEV_TOUCHSCREEN_PARAMETERS=/dev/input/event0
+os.environ.setdefault('QT_QPA_GENERIC_PLUGINS', 'evdevtouch')
 
 # Also suppress noisy libcamera log output.
 os.environ.setdefault('LIBCAMERA_LOG_LEVELS', '3')

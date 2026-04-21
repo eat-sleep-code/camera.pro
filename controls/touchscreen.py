@@ -173,6 +173,7 @@ class CamButton(QWidget):
         self.setFixedSize(size, size)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_Hover)
+        self.setAttribute(Qt.WA_AcceptTouchEvents)   # receive TouchBegin directly
         self.installEventFilter(self)
         self._callback = None
 
@@ -188,13 +189,14 @@ class CamButton(QWidget):
         self.update()
 
     def eventFilter(self, obj, event):
-        if event.type() == QEvent.HoverEnter:
+        t = event.type()
+        if t == QEvent.HoverEnter:
             self._hovered = True
             self.update()
-        elif event.type() == QEvent.HoverLeave:
+        elif t == QEvent.HoverLeave:
             self._hovered = False
             self.update()
-        elif event.type() == QEvent.MouseButtonPress:
+        elif t in (QEvent.MouseButtonPress, QEvent.TouchBegin):
             if self._callback:
                 self._callback()
             return True
@@ -546,6 +548,7 @@ class CaptureButton(OverlayWidget):
         self._callback = None
         self._hovered = False
         self.setAttribute(Qt.WA_Hover)
+        self.setAttribute(Qt.WA_AcceptTouchEvents)   # receive TouchBegin directly
         self.installEventFilter(self)
 
     def set_callback(self, fn):
@@ -555,11 +558,12 @@ class CaptureButton(OverlayWidget):
         self.update()
 
     def eventFilter(self, obj, event):
-        if event.type() == QEvent.HoverEnter:
+        t = event.type()
+        if t == QEvent.HoverEnter:
             self._hovered = True; self.update()
-        elif event.type() == QEvent.HoverLeave:
+        elif t == QEvent.HoverLeave:
             self._hovered = False; self.update()
-        elif event.type() == QEvent.MouseButtonPress:
+        elif t in (QEvent.MouseButtonPress, QEvent.TouchBegin):
             if self._callback:
                 self._callback()
             return True
@@ -797,7 +801,9 @@ class CameraWindow(QMainWindow):
         self._settings_panel.hide()
         self._settings_panel.raise_()
 
+        self._preview.setAttribute(Qt.WA_AcceptTouchEvents)
         self._preview.mousePressEvent = self._on_viewfinder_tap
+        self._preview.touchEvent = self._on_viewfinder_touch
 
         # Frame paint timer (~30 fps)
         self._frame_timer = QTimer(self)
@@ -853,6 +859,19 @@ class CameraWindow(QMainWindow):
             })
         except Exception:
             pass
+
+    def _on_viewfinder_touch(self, event):
+        """Handle raw touch on the viewfinder (fallback when synthesis is off)."""
+        if event.type() == QEvent.TouchBegin:
+            pts = event.points() if hasattr(event, 'points') else event.touchPoints()
+            if pts:
+                pos = pts[0].position() if hasattr(pts[0], 'position') else pts[0].pos()
+                # Reuse the mouse-tap handler logic via a synthetic QMouseEvent
+                class _FakeEvent:
+                    def position(self_):
+                        return pos
+                self._on_viewfinder_tap(_FakeEvent())
+            event.accept()
 
     def _refresh_ui(self):
         self._top_bar.update_state()
@@ -921,6 +940,40 @@ class SettingsPanel(OverlayWidget):
 
 
 # ---------------------------------------------------------------------------
+# Touch device auto-detection
+#
+# Qt's evdevtouch plugin scans /dev/input/event* for touch devices when no
+# explicit path is given via QT_QPA_EVDEV_TOUCHSCREEN_PARAMETERS.  On some
+# Pi display drivers (e.g. FT5406 / GT911) the device doesn't advertise
+# BTN_TOUCH in its capabilities, so Qt's scanner may miss it.  We probe
+# sysfs here and pin the device path explicitly if we find one.
+
+def _find_touch_device() -> str | None:
+    """Return '/dev/input/eventN' for the first capacitive touch controller
+    found in sysfs, or None if nothing is found / already overridden."""
+    if 'QT_QPA_EVDEV_TOUCHSCREEN_PARAMETERS' in os.environ:
+        return None   # caller already specified it
+
+    import glob as _glob
+    # Walk /sys/class/input looking for a device whose name suggests touch
+    touch_keywords = ('touch', 'ft5', 'gt9', 'goodix', 'edt-ft', 'ilitek')
+    for name_path in _glob.glob('/sys/class/input/*/device/name'):
+        try:
+            with open(name_path) as f:
+                name = f.read().strip().lower()
+        except OSError:
+            continue
+        if any(k in name for k in touch_keywords):
+            # e.g. /sys/class/input/event0/device/name  →  /dev/input/event0
+            event_dir = name_path.replace('/device/name', '')
+            event_name = os.path.basename(event_dir)
+            dev_path = f'/dev/input/{event_name}'
+            if os.path.exists(dev_path):
+                return dev_path
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 
 class Touchscreen:
@@ -928,6 +981,16 @@ class Touchscreen:
         # QApplication is created in camera.py before any imports run.
         # Retrieve the existing instance — never create a second one.
         app = QApplication.instance()
+
+        # Ensure Qt synthesises mouse events from unhandled touch events so
+        # that all our MouseButtonPress-based widgets work without requiring
+        # explicit touch-event handling in every widget.
+        app.setAttribute(Qt.ApplicationAttribute.AA_SynthesizeMouseForUnhandledTouchEvents, True)
+
+        # Pin the evdev touch device path if auto-detection failed.
+        dev = _find_touch_device()
+        if dev:
+            os.environ['QT_QPA_EVDEV_TOUCHSCREEN_PARAMETERS'] = dev
 
         # Load stylesheet
         qss_path = os.path.join(os.path.dirname(__file__), '..', 'ui', 'style.qss')
