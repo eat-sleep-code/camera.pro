@@ -30,7 +30,7 @@ from PySide6.QtGui import (
     QPainter, QPen, QColor, QFont, QPixmap,
     QPainterPath, QBrush,
 )
-from picamera2.previews.qt import QGlPicamera2
+from picamera2.previews.qt import QPicamera2
 from actions import Actions
 import globals
 import os
@@ -346,18 +346,21 @@ class LeftPanel(OverlayWidget):
         layout.addStretch()
         self.setLayout(layout)
 
-        # Stepper popup (created once, repositioned)
-        self._stepper = StepperPopup(parent)
+        # Stepper popup — created lazily on first use so self.parent() is valid.
+        self._stepper = None
 
     def _toggle_stepper(self, name: str, cycle_fn):
         if self._active_control == name:
             self._active_control = None
-            self._stepper.hide()
+            if self._stepper:
+                self._stepper.hide()
         else:
+            # Lazy-create stepper so self.parent() is the QPicamera2 widget
+            if self._stepper is None:
+                self._stepper = StepperPopup(self.parent())
             self._active_control = name
             for k, b in self._buttons.items():
                 b.set_selected(k == name)
-            # Position stepper to the right of this panel
             btn = self._buttons[name]
             btn_pos = btn.mapTo(self.parent(), QPoint(0, 0))
             self._stepper.set_control(name, cycle_fn)
@@ -376,7 +379,8 @@ class LeftPanel(OverlayWidget):
         self._active_control = None
         for b in self._buttons.values():
             b.set_selected(False)
-        self._stepper.hide()
+        if self._stepper:
+            self._stepper.hide()
 
     def update_labels(self):
         s = globals.state
@@ -699,32 +703,30 @@ class CameraWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
-        self.setAttribute(Qt.WA_TranslucentBackground, False)
 
         W = globals.preview.width
         H = globals.preview.height
         self._W = W
         self._H = H
 
-        # Central container
-        container = QWidget(self)
-        container.setFixedSize(W, H)
-        container.setStyleSheet('background: black;')
-        self.setCentralWidget(container)
-
-        # Camera preview — must be created before camera is started so that
-        # QGlPicamera2 can register its frame callback first.
+        # Configure camera before creating the preview widget.
         globals.primary.module.configure(globals.primary.previewConfiguration)
-        self._preview = QGlPicamera2(
+
+        # QPicamera2 uses normal Qt software rendering — no EGL/OpenGL context
+        # needed, composites correctly with child overlay widgets.
+        # It must be the direct central widget (not a child of another container).
+        self._preview = QPicamera2(
             globals.primary.module,
             width=W, height=H,
-            keep_ar=True,
-            parent=container,
+            keep_ar=False,
         )
-        self._preview.setGeometry(0, 0, W, H)
+        self._preview.setStyleSheet('background: black;')
+        self.setCentralWidget(self._preview)
+
+        # Start camera now that the preview widget is registered.
         globals.primary.module.start()
 
-        # Enable continuous AF now that the camera is running
+        # Enable continuous AF now that the camera is running.
         if globals.primary.hasAutofocus:
             try:
                 from libcamera import controls as lc
@@ -737,23 +739,21 @@ class CameraWindow(QMainWindow):
         vp_y = BAR_H
         vp_h = H - BAR_H * 2 - 12
 
-        # Top bar
-        self._top_bar = TopBar(W, container)
+        # All overlays are children of self._preview so they composite on top.
+        self._top_bar = TopBar(W, self._preview)
         self._top_bar.setGeometry(0, 0, W, BAR_H)
         self._top_bar.raise_()
 
-        # Left panel
-        self._left = LeftPanel(vp_h, container)
+        self._left = LeftPanel(vp_h, self._preview)
         self._left.setGeometry(0, vp_y, PANEL_W, vp_h)
         self._left.raise_()
 
-        # Right panel
-        self._right = RightPanel(vp_h, container)
+        self._right = RightPanel(vp_h, self._preview)
         self._right.setGeometry(W - PANEL_W, vp_y, PANEL_W, vp_h)
         self._right.raise_()
 
-        # AF focus box (covers the viewfinder area)
-        self._focus_box = FocusBox(container)
+        # AF focus box (covers the viewfinder area between the panels)
+        self._focus_box = FocusBox(self._preview)
         self._focus_box.setGeometry(PANEL_W, vp_y, W - PANEL_W * 2, vp_h)
         self._focus_box.raise_()
 
@@ -764,18 +764,17 @@ class CameraWindow(QMainWindow):
             cy = vp_h // 2 - fh // 2
             self._focus_box.set_focus_rect(QRect(cx, cy, fw, fh))
 
-        # Bottom bar
-        self._bottom = BottomBar(W, container)
+        self._bottom = BottomBar(W, self._preview)
         self._bottom.setGeometry(0, H - BAR_H - 12, W, BAR_H + 12)
         self._bottom.raise_()
 
         # Settings panel (initially hidden)
-        self._settings_panel = SettingsPanel(W // 2, vp_h, container)
+        self._settings_panel = SettingsPanel(W // 2, vp_h, self._preview)
         self._settings_panel.setGeometry(W // 4, vp_y, W // 2, vp_h)
         self._settings_panel.hide()
         self._settings_panel.raise_()
 
-        # Tap-to-focus on viewfinder
+        # Tap-to-focus on the exposed viewfinder area
         self._preview.mousePressEvent = self._on_viewfinder_tap
 
         # Refresh timer: update labels every 500ms
