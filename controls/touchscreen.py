@@ -18,8 +18,7 @@ Layout (default 800×600):
   └─────────────────────────────────────────────┘
   left 64px                       right 64px
 
-Icons use Material Symbols Rounded (downloaded by install.sh).
-Falls back to Unicode / text labels if font not available.
+Icons via qtawesome (bundles Material Design Icons — no download required).
 """
 
 from PySide6.QtWidgets import (
@@ -28,7 +27,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QTimer, QRect, QPoint, QSize, QEvent
 from PySide6.QtGui import (
-    QPainter, QPen, QColor, QFont, QFontDatabase, QPixmap,
+    QPainter, QPen, QColor, QFont, QPixmap,
     QPainterPath, QBrush,
 )
 from picamera2.previews.qt import QGlPicamera2
@@ -38,31 +37,34 @@ import os
 import sys
 
 # ---------------------------------------------------------------------------
-# Icon font
+# Icons via qtawesome (Material Design Icons bundled in the package)
 
-_ICON_FONT_FAMILY = None
-_ICON_FONT_PATH = os.path.join(os.path.dirname(__file__), '..', 'ui', 'MaterialSymbolsRounded.ttf')
+try:
+    import qtawesome as qta
+    _QTA_AVAILABLE = True
+except ImportError:
+    _QTA_AVAILABLE = False
 
-# Material Symbols codepoints
-_ICONS = {
-    'shutter':   '\ue43d',   # shutter_speed
-    'iso':       '\ue3f4',   # iso
-    'ev':        '\ue3c9',   # exposure
-    'wb':        '\ue42f',   # wb_auto
-    'metering':  '\ue3b4',   # center_focus_strong
-    'bracket':   '\ue3e0',   # filter_none
-    'timer':     '\ue425',   # timer
-    'settings':  '\ue8b8',   # settings
-    'camera':    '\ue3af',   # camera_alt
-    'video':     '\ue04b',   # videocam
-    'stop':      '\uf05f',   # stop_circle
-    'plus':      '\ue145',   # add_circle
-    'minus':     '\ue15c',   # remove_circle
-    'af_on':     '\ue3b3',   # center_focus_weak
-    'check':     '\ue876',   # check
+# Logical name → Material Design Icons id (qtawesome 'mdi' set)
+_QTA_ICONS = {
+    'shutter':  'mdi.camera-iris',
+    'iso':      'mdi.iso',
+    'ev':       'mdi.brightness-4',
+    'wb':       'mdi.white-balance-auto',
+    'metering': 'mdi.camera-metering-center',
+    'bracket':  'mdi.layers-triple-outline',
+    'timer':    'mdi.timer-outline',
+    'settings': 'mdi.cog-outline',
+    'camera':   'mdi.camera',
+    'video':    'mdi.video',
+    'stop':     'mdi.stop-circle-outline',
+    'plus':     'mdi.plus-circle-outline',
+    'minus':    'mdi.minus-circle-outline',
+    'af_on':    'mdi.focus-field-horizontal',
+    'check':    'mdi.check-circle-outline',
 }
 
-# Fallback text when icon font unavailable
+# Unicode/text fallbacks used when qtawesome is not installed
 _ICON_FALLBACK = {
     'shutter':  'SS',
     'iso':      'ISO',
@@ -82,33 +84,27 @@ _ICON_FALLBACK = {
 }
 
 
-def _load_icon_font():
-    global _ICON_FONT_FAMILY
-    if _ICON_FONT_FAMILY is not None:
-        return _ICON_FONT_FAMILY
-    path = os.path.abspath(_ICON_FONT_PATH)
-    if os.path.exists(path):
-        font_id = QFontDatabase.addApplicationFont(path)
-        families = QFontDatabase.applicationFontFamilies(font_id)
-        if families:
-            _ICON_FONT_FAMILY = families[0]
-    return _ICON_FONT_FAMILY
-
-
-def icon_font(size: int = 24) -> QFont:
-    family = _load_icon_font()
-    if family:
-        f = QFont(family, size)
-        f.setStyleStrategy(QFont.PreferAntialias)
-        return f
-    return QFont('Segoe UI Symbol', size)
-
-
-def icon_text(name: str) -> str:
-    family = _load_icon_font()
-    if family:
-        return _ICONS.get(name, '?')
-    return _ICON_FALLBACK.get(name, name.upper()[:3])
+def get_icon_pixmap(name: str, size: int = 24, color: QColor = None) -> QPixmap:
+    """Return a QPixmap for the named icon."""
+    if color is None:
+        color = C_TEXT
+    if _QTA_AVAILABLE and name in _QTA_ICONS:
+        try:
+            ico = qta.icon(_QTA_ICONS[name], color=color.name())
+            return ico.pixmap(QSize(size, size))
+        except Exception:
+            pass
+    # Fallback: render text into a pixmap
+    pm = QPixmap(size, size)
+    pm.fill(Qt.transparent)
+    painter = QPainter(pm)
+    painter.setRenderHint(QPainter.Antialiasing)
+    painter.setPen(QPen(color))
+    painter.setFont(QFont('sans-serif', max(8, int(size * 0.45))))
+    painter.drawText(QRect(0, 0, size, size), Qt.AlignCenter,
+                     _ICON_FALLBACK.get(name, name[:3].upper()))
+    painter.end()
+    return pm
 
 
 # ---------------------------------------------------------------------------
@@ -202,16 +198,18 @@ class CamButton(QWidget):
         p.setPen(Qt.NoPen)
         p.drawRoundedRect(4, 4, s - 8, s - 8, RADIUS, RADIUS)
 
-        # Icon (upper ~60%) or full if no label
-        icon_area_h = s - 14 if self.label_text else s - 8
-        p.setFont(icon_font(20))
-        p.setPen(QPen(C_BTN_SEL if self._selected else C_TEXT))
-        p.drawText(QRect(0, 4, s, icon_area_h), Qt.AlignCenter, icon_text(self.icon_name))
+        # Icon
+        icon_size = 26
+        icon_color = QColor(0, 0, 0, 200) if self._selected else C_TEXT
+        pm = get_icon_pixmap(self.icon_name, icon_size, icon_color)
+        icon_y = 6 if self.label_text else (s - icon_size) // 2
+        icon_x = (s - icon_size) // 2
+        p.drawPixmap(icon_x, icon_y, pm)
 
         # Sub-label (lower strip)
         if self.label_text:
             p.setFont(QFont('sans-serif', 8))
-            p.setPen(QPen(C_BTN_SEL if self._selected else C_TEXT_DIM))
+            p.setPen(QPen(QColor(0, 0, 0, 200) if self._selected else C_TEXT_DIM))
             p.drawText(QRect(0, s - 16, s, 14), Qt.AlignCenter, self.label_text)
 
         p.end()
@@ -300,12 +298,11 @@ class TopBar(OverlayWidget):
 
         # AF indicator (right side)
         if self._af:
-            p.setFont(icon_font(16))
-            p.setPen(QPen(C_AF_BOX))
-            p.drawText(QRect(w - 80, 0, 40, h), Qt.AlignCenter, icon_text('af_on'))
+            pm = get_icon_pixmap('af_on', 18, C_AF_BOX)
+            p.drawPixmap(w - 76, (h - 18) // 2, pm)
             p.setFont(QFont('sans-serif', 9))
             p.setPen(QPen(C_AF_BOX))
-            p.drawText(QRect(w - 44, 0, 36, h), Qt.AlignVCenter | Qt.AlignLeft, 'AF')
+            p.drawText(QRect(w - 54, 0, 36, h), Qt.AlignVCenter | Qt.AlignLeft, 'AF')
 
         # Recording dot
         if self._recording:
@@ -557,32 +554,22 @@ class CaptureButton(OverlayWidget):
         is_recording = globals.primary.isRecording
 
         if is_recording:
-            # Stop button style: amber ring + stop icon
             p.setPen(QPen(C_BTN_SEL, 3))
             p.setBrush(QBrush(C_REC.darker(120) if self._hovered else C_REC))
             p.drawEllipse(cx - r, cy - r, r * 2, r * 2)
-            p.setFont(icon_font(22))
-            p.setPen(QPen(QColor(255, 255, 255)))
-            p.drawText(QRect(0, 0, s, s), Qt.AlignCenter, icon_text('stop'))
+            pm = get_icon_pixmap('stop', 28, QColor(255, 255, 255))
         elif is_video:
-            # Record button: red circle
             p.setPen(QPen(QColor(255, 255, 255, 60), 2))
             p.setBrush(QBrush(C_REC.darker(130) if self._hovered else C_REC))
             p.drawEllipse(cx - r, cy - r, r * 2, r * 2)
-            p.setFont(icon_font(22))
-            p.setPen(QPen(QColor(255, 255, 255)))
-            p.drawText(QRect(0, 0, s, s), Qt.AlignCenter, icon_text('video'))
+            pm = get_icon_pixmap('video', 28, QColor(255, 255, 255))
         else:
-            # Photo shutter: white circle with icon
-            ring_color = QColor(255, 255, 255, 200)
-            fill_color = QColor(255, 255, 255, 80 if self._hovered else 40)
-            p.setPen(QPen(ring_color, 3))
-            p.setBrush(QBrush(fill_color))
+            p.setPen(QPen(QColor(255, 255, 255, 200), 3))
+            p.setBrush(QBrush(QColor(255, 255, 255, 80 if self._hovered else 40)))
             p.drawEllipse(cx - r, cy - r, r * 2, r * 2)
-            p.setFont(icon_font(22))
-            p.setPen(QPen(QColor(255, 255, 255, 230)))
-            p.drawText(QRect(0, 0, s, s), Qt.AlignCenter, icon_text('camera'))
+            pm = get_icon_pixmap('camera', 28, QColor(255, 255, 255, 230))
 
+        p.drawPixmap((s - pm.width()) // 2, (s - pm.height()) // 2, pm)
         p.end()
 
 

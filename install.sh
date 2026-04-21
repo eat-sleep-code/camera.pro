@@ -12,7 +12,12 @@ echo ''
 echo -e '\033[93mInstalling prerequisites... \033[0m'
 sudo apt install -y git python3 python3-pip python3-picamera2 python3-evdev ffmpeg libopenblas-dev daemontools daemontools-run wget
 sudo python3 -m venv --system-site-packages ~/camera.pro-venv
-sudo ~/camera.pro-venv/bin/pip3 install piexif ffmpeg-python google-api-python-client google-auth-httplib2 google-auth-oauthlib moviepy pyside6
+sudo ~/camera.pro-venv/bin/pip3 install piexif ffmpeg-python moviepy pyside6 qtawesome
+
+echo ''
+echo -e '\033[93mInstalling YouTube upload prerequisites (optional)... \033[0m'
+sudo ~/camera.pro-venv/bin/pip3 install google-api-python-client google-auth-httplib2 google-auth-oauthlib \
+  || echo -e '\033[93mWarning: YouTube upload prerequisites could not be installed. Core camera features are unaffected.\033[0m'
 
 
 echo ''
@@ -43,13 +48,6 @@ sudo chown -R $USER:$USER ~/dcim
 sudo chown -R $USER:$USER ~/logs
 
 
-echo ''
-echo -e '\033[93mDownloading icon font (Material Symbols Rounded)... \033[0m'
-curl -fsSL \
-  "https://github.com/google/material-symbols/raw/main/variablefont/MaterialSymbolsRounded%5BFILL%2CGRAD%2Cops%2Cwght%5D.ttf" \
-  -o ~/camera.pro/ui/MaterialSymbolsRounded.ttf \
-  && echo -e '\033[32mIcon font downloaded.\033[0m' \
-  || echo -e '\033[93mWarning: could not download icon font. UI will use text labels as fallback.\033[0m'
 
 
 echo ''
