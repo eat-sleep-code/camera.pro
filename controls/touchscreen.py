@@ -891,7 +891,9 @@ class SettingsPanel(OverlayWidget):
 
 class Touchscreen:
     def __init__(self):
-        app = QApplication.instance() or QApplication(sys.argv)
+        # QApplication is created in camera.py before any imports run.
+        # Retrieve the existing instance — never create a second one.
+        app = QApplication.instance()
 
         # Load stylesheet
         qss_path = os.path.join(os.path.dirname(__file__), '..', 'ui', 'style.qss')
