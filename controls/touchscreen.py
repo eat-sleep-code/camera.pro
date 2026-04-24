@@ -36,6 +36,7 @@ import globals
 import os
 import sys
 import threading
+import time
 
 # ---------------------------------------------------------------------------
 # Icons via qtawesome (Material Design Icons bundled in the package)
@@ -175,6 +176,7 @@ class CamButton(QWidget):
         self.setAttribute(Qt.WA_Hover)
         self.installEventFilter(self)
         self._callback = None
+        self._last_press = 0.0   # monotonic time of last accepted press
 
     def set_callback(self, fn):
         self._callback = fn
@@ -196,8 +198,11 @@ class CamButton(QWidget):
             self._hovered = False
             self.update()
         elif t == QEvent.MouseButtonPress:
-            if self._callback:
-                self._callback()
+            now = time.monotonic()
+            if now - self._last_press >= 0.45:   # 450 ms debounce (FT5506 bounce)
+                self._last_press = now
+                if self._callback:
+                    self._callback()
             return True
         return super().eventFilter(obj, event)
 
@@ -384,7 +389,9 @@ class LeftPanel(OverlayWidget):
             btn = self._buttons[name]
             btn_pos = btn.mapTo(self.parent(), QPoint(0, 0))
             self._stepper.set_control(name, cycle_fn)
-            self._stepper.move(self.x() + PANEL_W + 4, btn_pos.y())
+            # Centre the popup vertically on the tapped button
+            popup_y = btn_pos.y() + (BTN_H - StepperPopup.POPUP_H) // 2
+            self._stepper.move(PANEL_W + 4, popup_y)
             self._stepper.show()
             self._stepper.raise_()
 
@@ -423,22 +430,28 @@ class LeftPanel(OverlayWidget):
 class StepperPopup(OverlayWidget):
     """Small +/- popup that appears beside the active left-panel button."""
 
+    POPUP_W = 220
+    POPUP_H = 80
+    BTN_SZ  = 68
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedSize(140, BTN_H)
+        self.setFixedSize(self.POPUP_W, self.POPUP_H)
         self.hide()
         self._up_fn = None
         self._down_fn = None
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(6, 6, 6, 6)
-        layout.setSpacing(4)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(6)
 
-        self._down_btn = CamButton('minus', '', 48, self)
+        self._down_btn = CamButton('minus', '', self.BTN_SZ, self)
         self._label = QLabel('—', self)
         self._label.setAlignment(Qt.AlignCenter)
-        self._label.setStyleSheet('color: rgba(255,255,255,220); font-size: 14px; font-weight: bold;')
-        self._up_btn = CamButton('plus', '', 48, self)
+        self._label.setStyleSheet(
+            'color: rgba(255,255,255,230); font-size: 17px; font-weight: bold;'
+        )
+        self._up_btn = CamButton('plus', '', self.BTN_SZ, self)
 
         layout.addWidget(self._down_btn)
         layout.addWidget(self._label, 1)
@@ -548,6 +561,7 @@ class CaptureButton(OverlayWidget):
         self._size = size
         self._callback = None
         self._hovered = False
+        self._last_press = 0.0   # monotonic time of last accepted press
         self.setAttribute(Qt.WA_Hover)
         self.installEventFilter(self)
 
@@ -564,8 +578,14 @@ class CaptureButton(OverlayWidget):
         elif t == QEvent.HoverLeave:
             self._hovered = False; self.update()
         elif t == QEvent.MouseButtonPress:
-            if self._callback:
-                self._callback()
+            now = time.monotonic()
+            # Use a 2-second lock for capture to prevent double-capture from
+            # FT5506 bounce or impatient re-taps while a still is in progress.
+            cooldown = 2.0 if globals.state.captureMode != 'video' else 0.45
+            if now - self._last_press >= cooldown:
+                self._last_press = now
+                if self._callback:
+                    self._callback()
             return True
         return super().eventFilter(obj, event)
 
@@ -895,44 +915,139 @@ class CameraWindow(QMainWindow):
 # Settings panel (slides over the viewfinder)
 
 class SettingsPanel(OverlayWidget):
+    """Full-height overlay panel for camera settings."""
+
+    _ROW_H   = 52    # height of each setting row
+    _LBL_SZ  = 13    # key label font size
+    _VAL_SZ  = 16    # value / button font size
+
     def __init__(self, width: int, height: int, parent=None):
         super().__init__(parent)
         self.setFixedSize(width, height)
+        self._actions = Actions()
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(8)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(18, 16, 18, 16)
+        outer.setSpacing(0)
 
-        title = QLabel('Settings', self)
-        title.setStyleSheet('color: white; font-size: 16px; font-weight: bold;')
-        layout.addWidget(title)
+        # ── Title ──────────────────────────────────────────────────────────
+        title = QLabel('⚙  Settings', self)
+        title.setStyleSheet(
+            'color: white; font-size: 20px; font-weight: bold; padding-bottom: 10px;'
+        )
+        outer.addWidget(title)
 
-        for label_text, action in [
-            ('Exposure Mode',  'exposureMode'),
-            ('Metering Mode',  'meteringMode'),
-            ('AWB Mode',       'awbMode'),
-            ('Timer',          'timer'),
-        ]:
-            lbl = QLabel(label_text, self)
-            lbl.setStyleSheet('color: rgba(255,255,255,160); font-size: 11px;')
-            layout.addWidget(lbl)
+        sep = QFrame(self)
+        sep.setFrameShape(QFrame.HLine)
+        sep.setStyleSheet('color: rgba(255,255,255,40);')
+        outer.addWidget(sep)
+        outer.addSpacing(6)
 
-        layout.addStretch()
+        # ── Setting rows ───────────────────────────────────────────────────
+        self._rows: dict[str, QLabel] = {}
 
-        close_btn = QPushButton('Close', self)
+        rows = [
+            ('Exposure',  self._cycle_exposure),
+            ('Metering',  self._cycle_metering),
+            ('White Bal', self._cycle_wb),
+            ('Program',   self._cycle_program),
+            ('Timer',     self._cycle_timer),
+        ]
+
+        for key, fn in rows:
+            row_widget = QWidget(self)
+            row_widget.setFixedHeight(self._ROW_H)
+            row_layout = QHBoxLayout(row_widget)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(8)
+
+            key_lbl = QLabel(key, row_widget)
+            key_lbl.setStyleSheet(
+                f'color: rgba(255,255,255,160); font-size: {self._LBL_SZ}px;'
+            )
+            key_lbl.setFixedWidth(80)
+
+            val_btn = QPushButton('—', row_widget)
+            val_btn.setObjectName('settingsVal')
+            val_btn.setStyleSheet(
+                f'background: rgba(255,255,255,0.12); color: white; '
+                f'font-size: {self._VAL_SZ}px; font-weight: 600; '
+                f'border-radius: 8px; padding: 6px 14px; text-align: left;'
+            )
+            val_btn.clicked.connect(fn)
+            self._rows[key] = val_btn
+
+            row_layout.addWidget(key_lbl)
+            row_layout.addWidget(val_btn, 1)
+            outer.addWidget(row_widget)
+            outer.addSpacing(2)
+
+        outer.addStretch()
+
+        # ── Close ──────────────────────────────────────────────────────────
+        close_btn = QPushButton('✕  Close', self)
         close_btn.setObjectName('settingsClose')
-        close_btn.clicked.connect(lambda: self.hide())
-        layout.addWidget(close_btn)
+        close_btn.setFixedHeight(48)
+        close_btn.setStyleSheet(
+            'background: rgba(255,255,255,0.15); color: white; '
+            'font-size: 16px; font-weight: 600; border-radius: 10px;'
+        )
+        close_btn.clicked.connect(self.hide)
+        outer.addWidget(close_btn)
 
-        self.setLayout(layout)
+        self.setLayout(outer)
+        self.refresh()
+
+    # ── Value cycling ───────────────────────────────────────────────────────
+
+    def _cycle_exposure(self):
+        self._actions.SetExposureMode()
+        self.refresh()
+
+    def _cycle_metering(self):
+        self._actions.SetMeteringMode()
+        self.refresh()
+
+    def _cycle_wb(self):
+        self._actions.SetAWBMode()
+        self.refresh()
+
+    def _cycle_program(self):
+        s = globals.state
+        s.programMode = 'manual' if s.programMode == 'auto' else 'auto'
+        self.refresh()
+
+    def _cycle_timer(self):
+        self._actions.SetTimer()
+        self.refresh()
+
+    # ── Refresh displayed values ────────────────────────────────────────────
+
+    def refresh(self):
+        s = globals.state
+        timer_val = 'Off' if s.timer == 0 else f'{s.timer} s'
+        values = {
+            'Exposure':  s.exposureMode,
+            'Metering':  {'CentreWeighted': 'Centre', 'Spot': 'Spot',
+                          'Matrix': 'Matrix'}.get(s.meteringMode, s.meteringMode),
+            'White Bal': s.awbMode,
+            'Program':   'Auto (P)' if s.programMode == 'auto' else 'Manual (M)',
+            'Timer':     timer_val,
+        }
+        for key, val_btn in self._rows.items():
+            val_btn.setText(values.get(key, '—'))
+
+    def showEvent(self, event):
+        self.refresh()
+        super().showEvent(event)
 
     def paintEvent(self, event):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         path = QPainterPath()
         path.addRoundedRect(0, 0, self.width(), self.height(), 16, 16)
-        p.fillPath(path, QColor(10, 10, 20, 220))
-        p.setPen(QPen(QColor(255, 255, 255, 30), 1))
+        p.fillPath(path, QColor(10, 10, 25, 235))
+        p.setPen(QPen(QColor(255, 255, 255, 40), 1))
         p.drawPath(path)
         p.end()
 

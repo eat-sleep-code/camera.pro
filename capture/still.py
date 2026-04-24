@@ -1,5 +1,6 @@
 from functions import Console
 from capture.postProcess import PostProcess
+from libcamera import ColorSpace
 import globals
 
 console = Console()
@@ -24,11 +25,13 @@ class Still:
 
 		console.info('Capturing image: ' + filePath)
 
-		# Ensure the stored preview config has a 'raw' key so that
-		# switch_mode_and_capture_request can switch back without a KeyError
-		# on older/newer picamera2 versions that omit it from preview configs.
+		# Patch module.camera_config (the live preview config picamera2 will
+		# switch back to after the still) so it has all keys that
+		# check_camera_config() requires.  Older/newer picamera2 versions may
+		# strip 'raw' and/or 'colour_space' from the dict during configure().
 		if hasattr(module, 'camera_config') and isinstance(module.camera_config, dict):
 			module.camera_config.setdefault('raw', None)
+			module.camera_config.setdefault('colour_space', ColorSpace.Sycc())
 
 		request = module.switch_mode_and_capture_request(stillConfiguration)
 		request.save('main', filePath)
