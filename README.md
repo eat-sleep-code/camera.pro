@@ -36,24 +36,6 @@ camera
 
 ---
 
-## Automatic YouTube Upload
-
-- Copy [youtube/config.json.example](config.json.example) to a new file called __youtube/config.json__.
-- Sign in to the [Google APIs & Services](https://console.cloud.google.com/apis/dashboard) console.
-- If necessary, create a new Project.
-- Expand the left menu and select the __Enabled APIs & services__ menu item.
-- Click the __+ ENABLE APIS AND SERVICES__ button.
-- Search for &ndash; and enable &ndash; the __YouTube Data API v3__.
-- Select the __Credentials__ menu item from the left menu.
-- Click the __+ CREATE CREDENTIALS__ button and select __OAuth client ID__ from the dropdown menu that appears.
-- :heavy_exclamation_mark: Select __Desktop app__ from the __Application Type__ dropdown menu.  Selecting any other option from the list will make authentication impossible. :heavy_exclamation_mark:
-- Enter an appropriate value in the __Name__ field and click the Submit button.   
-- From the screen that appears, copy the Client ID and Client Secret and paste them in the appropriate places within the config.json file you created in the first step.
-- Open a terminal and execute `./camera/youtube/authorize.sh`.  You will be prompted to open a link in the browser.
-- You will receive a warning about only continuing if you trust the requestor.   If you trust yourself, advance to the final step to complete the authentication process.
-
----
-
 ## Autostart
 
 Camera PRO runs as root (required for framebuffer and camera hardware access) via a systemd service.  The install script sets up the service and adds the following shell aliases for convenience:
@@ -108,6 +90,12 @@ sudo cp /tmp/ft5506-poll.dtbo /boot/firmware/overlays/ft5506-poll.dtbo
 touch-enable
 sudo reboot
 ```
+
+> [!NOTE]
+> On some displays, systemd may log a recurring error for a service such as `systemd-backlight@backlight:10-0045.service` because it cannot read or write the display's backlight interface.  This is harmless but noisy.  If you see this, identify the exact service name with `sudo systemctl --failed` and mask it:
+> ```bash
+> sudo systemctl mask systemd-backlight@backlight:<device>.service
+> ```
 ---
 
 ## Infrared Cameras
@@ -122,6 +110,24 @@ awb_auto_is_greyworld=1
 
 > [!NOTE]
 > While IR cameras utilize "invisible" (outside the spectrum of the human eye) light, they can not magically see in the dark.   You will need to illuminate night scenes with one or more IR lights to take advantage of an Infrared Camera.
+
+---
+
+## Automatic YouTube Upload
+
+- Copy [youtube/config.json.example](config.json.example) to a new file called __youtube/config.json__.
+- Sign in to the [Google APIs & Services](https://console.cloud.google.com/apis/dashboard) console.
+- If necessary, create a new Project.
+- Expand the left menu and select the __Enabled APIs & services__ menu item.
+- Click the __+ ENABLE APIS AND SERVICES__ button.
+- Search for &ndash; and enable &ndash; the __YouTube Data API v3__.
+- Select the __Credentials__ menu item from the left menu.
+- Click the __+ CREATE CREDENTIALS__ button and select __OAuth client ID__ from the dropdown menu that appears.
+- :heavy_exclamation_mark: Select __Desktop app__ from the __Application Type__ dropdown menu.  Selecting any other option from the list will make authentication impossible. :heavy_exclamation_mark:
+- Enter an appropriate value in the __Name__ field and click the Submit button.   
+- From the screen that appears, copy the Client ID and Client Secret and paste them in the appropriate places within the config.json file you created in the first step.
+- Open a terminal and execute `./camera/youtube/authorize.sh`.  You will be prompted to open a link in the browser.
+- You will receive a warning about only continuing if you trust the requestor.   If you trust yourself, advance to the final step to complete the authentication process.
 
 ---
 
