@@ -53,9 +53,6 @@ sudo chown -R $USER:$USER ~/logs
 echo ''
 echo -e '\033[93mSetting up autostart service... \033[0m'
 cd ~
-echo 'Removing legacy daemontools service instance (if present)...'
-sudo svc -d /etc/service/camera.pro 2>/dev/null || true
-sudo rm -Rf /etc/service/camera.pro
 echo 'Installing systemd service...'
 sudo cp ~/camera.pro/camera.service /etc/systemd/system/
 sudo systemctl daemon-reload
