@@ -128,18 +128,20 @@ def get_icon_pixmap(name: str, size: int = 24, color: QColor = None) -> QPixmap:
 # ---------------------------------------------------------------------------
 # Colours / geometry constants
 
-C_BG       = QColor(0, 0, 0, 0)           # fully transparent
-C_BAR      = QColor(0, 0, 0, 180)         # top/bottom bars
-C_PANEL    = QColor(0, 0, 0, 140)         # side panel background
-C_BTN      = QColor(255, 255, 255, 22)    # normal button fill
-C_BTN_HOV  = QColor(255, 255, 255, 50)    # hover fill
-C_BTN_ACT  = QColor(255, 255, 255, 80)    # active/pressed fill
-C_BTN_SEL  = QColor(255, 200, 0, 200)     # selected/on accent (amber)
-C_REC      = QColor(220, 40, 40, 255)     # record button
-C_TEXT     = QColor(255, 255, 255, 230)   # primary text
-C_TEXT_DIM = QColor(255, 255, 255, 130)   # secondary / dim text
-C_AF_BOX   = QColor(80, 220, 80, 220)     # autofocus box
-C_AF_LOCK  = QColor(255, 200, 0, 220)     # AF lock / manual
+C_BG         = QColor(0, 0, 0, 0)           # fully transparent
+C_BAR        = QColor(0, 0, 0, 180)         # top/bottom bars
+C_PANEL      = QColor(0, 0, 0, 140)         # side panel background
+C_BTN        = QColor(255, 255, 255, 22)    # normal button fill
+C_BTN_HOV    = QColor(255, 255, 255, 50)    # hover fill
+C_BTN_ACT    = QColor(255, 255, 255, 80)    # active/pressed fill
+C_BTN_SEL    = QColor(255, 200, 0, 200)     # selected/on accent (amber)
+C_REC        = QColor(220, 40, 40, 255)     # record / danger red
+C_PHOTO_RING = QColor(80, 160, 255, 230)    # blue outline on photo button
+C_REC_RING   = QColor(220, 50, 50, 230)     # red outline on record button
+C_TEXT       = QColor(255, 255, 255, 230)   # primary text
+C_TEXT_DIM   = QColor(255, 255, 255, 130)   # secondary / dim text
+C_AF_BOX     = QColor(80, 220, 80, 220)     # autofocus box
+C_AF_LOCK    = QColor(255, 200, 0, 220)     # AF lock / manual
 
 BAR_H    = 36   # top & bottom bar height
 PANEL_W  = 64   # left & right panel width
@@ -211,7 +213,7 @@ class CamButton(QWidget):
         p.setRenderHint(QPainter.Antialiasing)
         s = self._size
 
-        # Background pill
+        # Background pill  (rect from y=4 to y=s-4, i.e. inner height = s-8)
         if self._selected:
             p.setBrush(QBrush(C_BTN_SEL))
         elif self._hovered:
@@ -221,19 +223,37 @@ class CamButton(QWidget):
         p.setPen(Qt.NoPen)
         p.drawRoundedRect(4, 4, s - 8, s - 8, RADIUS, RADIUS)
 
-        # Icon
-        icon_size = 26
-        icon_color = QColor(0, 0, 0, 200) if self._selected else C_TEXT
-        pm = get_icon_pixmap(self.icon_name, icon_size, icon_color)
-        icon_y = 6 if self.label_text else (s - icon_size) // 2
-        icon_x = (s - icon_size) // 2
-        p.drawPixmap(icon_x, icon_y, pm)
+        # ── Layout: icon + optional label as a single centred group ──────────
+        # The rounded rect inner surface runs from y=4 to y=(s-4).
+        # We reserve PAD px of breathing room inside that surface so
+        # content never crowds the rounded corners.
+        PAD     = 8          # padding from pill edge to content group
+        ICN_SZ  = 22         # icon pixel size
+        GAP     = 3          # pixels between icon bottom and label top
+        LBL_H   = 12         # label text row height (px)
 
-        # Sub-label (lower strip)
+        inner_top = 4 + PAD                          # first usable y inside pill
+        inner_h   = (s - 8) - PAD * 2               # usable height  (= s-8-2*PAD)
+
         if self.label_text:
+            content_h = ICN_SZ + GAP + LBL_H
+        else:
+            content_h = ICN_SZ
+
+        start_y = inner_top + (inner_h - content_h) // 2   # centre the group
+
+        # Icon
+        icon_color = QColor(0, 0, 0, 200) if self._selected else C_TEXT
+        pm   = get_icon_pixmap(self.icon_name, ICN_SZ, icon_color)
+        ix   = (s - ICN_SZ) // 2
+        p.drawPixmap(ix, start_y, pm)
+
+        # Label — immediately below the icon with a small gap
+        if self.label_text:
+            lbl_y = start_y + ICN_SZ + GAP
             p.setFont(QFont('sans-serif', 8))
             p.setPen(QPen(QColor(0, 0, 0, 200) if self._selected else C_TEXT_DIM))
-            p.drawText(QRect(0, s - 16, s, 14), Qt.AlignCenter, self.label_text)
+            p.drawText(QRect(2, lbl_y, s - 4, LBL_H + 2), Qt.AlignCenter, self.label_text)
 
         p.end()
 
@@ -388,10 +408,12 @@ class LeftPanel(OverlayWidget):
                 b.set_selected(k == name)
             btn = self._buttons[name]
             self._stepper.set_control(name, cycle_fn)
-            # self.y()  = LeftPanel top inside _preview
-            # btn.y()   = button top inside LeftPanel
-            # Sum gives the button's top in _preview coordinates — no mapTo needed.
-            popup_y = self.y() + btn.y()
+            # Centre the popup on the button using direct geometry arithmetic.
+            # self.y() = LeftPanel top inside _preview (= BAR_H)
+            # btn.y()  = button top inside LeftPanel (set by QVBoxLayout)
+            # Shift up by half the height difference so centres align.
+            btn_top_in_preview = self.y() + btn.y()
+            popup_y = btn_top_in_preview - (StepperPopup.POPUP_H - BTN_H) // 2
             self._stepper.move(PANEL_W + 4, popup_y)
             self._stepper.show()
             self._stepper.raise_()
@@ -481,7 +503,7 @@ class StepperPopup(OverlayWidget):
             'iso':      'Auto' if s.iso == 0 else str(s.iso),
             'ev':       ('+' if s.exposureValue > 0 else '') + str(s.exposureValue),
             'wb':       s.awbMode,
-            'metering': {'CentreWeighted': 'Centre', 'Spot': 'Spot', 'Matrix': 'Matrix'}.get(s.meteringMode, s.meteringMode),
+            'metering': {'CentreWeighted': 'Center', 'Spot': 'Spot', 'Matrix': 'Matrix'}.get(s.meteringMode, s.meteringMode),
             'bracket':  'Off' if s.bracket == 0 else f'\u00b1{s.bracket} EV',
         }
         self._label.setText(labels.get(name, '—'))
@@ -515,8 +537,8 @@ class RightPanel(OverlayWidget):
         self._photo_btn.set_callback(self._on_photo)
         layout.addWidget(self._photo_btn, 0, Qt.AlignHCenter)
 
-        # Video record / stop — tap to start recording, tap again to stop.
-        self._video_btn = CamButton('video', 'REC', BTN_H, self)
+        # Video record / stop — tap to start, tap again to stop.
+        self._video_btn = RecordButton(BTN_H, self)
         self._video_btn.set_callback(self._on_video)
         layout.addWidget(self._video_btn, 0, Qt.AlignHCenter)
 
@@ -538,12 +560,7 @@ class RightPanel(OverlayWidget):
     def _on_video(self):
         globals.state.captureMode = 'video'
         self._actions.CaptureVideo()
-        self._sync_video_btn()
-
-    def _sync_video_btn(self):
-        recording = globals.primary.isRecording
-        self._video_btn.set_selected(recording)
-        self._video_btn.set_label('STOP' if recording else 'REC')
+        self._video_btn.update_state()
 
     def _on_timer(self):
         self._actions.SetTimer()
@@ -558,7 +575,7 @@ class RightPanel(OverlayWidget):
 
     def update_state(self):
         self._photo_btn.update_state()
-        self._sync_video_btn()
+        self._video_btn.update_state()
         t = globals.state.timer
         self._timer_btn.set_label('Off' if t == 0 else f'{t}s')
         self._timer_btn.set_selected(t > 0)
@@ -568,13 +585,16 @@ class RightPanel(OverlayWidget):
 # Large circular capture/record button
 
 class CaptureButton(OverlayWidget):
+    """Circular photo-shutter button.  Blue ring; flashes white on press."""
+
     def __init__(self, size: int = 64, parent=None):
         super().__init__(parent)
         self.setFixedSize(size, size)
-        self._size = size
-        self._callback = None
-        self._hovered = False
-        self._last_press = 0.0   # monotonic time of last accepted press
+        self._size      = size
+        self._callback  = None
+        self._hovered   = False
+        self._flashing  = False
+        self._last_press = 0.0
         self.setAttribute(Qt.WA_Hover)
         self.installEventFilter(self)
 
@@ -584,19 +604,23 @@ class CaptureButton(OverlayWidget):
     def update_state(self):
         self.update()
 
+    def _end_flash(self):
+        self._flashing = False
+        self.update()
+
     def eventFilter(self, obj, event):
         t = event.type()
         if t == QEvent.HoverEnter:
-            self._hovered = True; self.update()
+            self._hovered = True;  self.update()
         elif t == QEvent.HoverLeave:
             self._hovered = False; self.update()
         elif t == QEvent.MouseButtonPress:
             now = time.monotonic()
-            # Use a 2-second lock for capture to prevent double-capture from
-            # FT5506 bounce or impatient re-taps while a still is in progress.
-            cooldown = 2.0 if globals.state.captureMode != 'video' else 0.45
-            if now - self._last_press >= cooldown:
+            if now - self._last_press >= 2.0:   # 2 s lock — still takes ~1 s
                 self._last_press = now
+                self._flashing = True
+                self.update()
+                QTimer.singleShot(160, self._end_flash)
                 if self._callback:
                     self._callback()
             return True
@@ -608,11 +632,100 @@ class CaptureButton(OverlayWidget):
         s = self._size
         cx, cy, r = s // 2, s // 2, s // 2 - 4
 
-        # CaptureButton is the photo shutter — always shows the camera icon.
-        p.setPen(QPen(QColor(255, 255, 255, 200), 3))
-        p.setBrush(QBrush(QColor(255, 255, 255, 80 if self._hovered else 40)))
+        p.setPen(QPen(C_PHOTO_RING, 3))
+        if self._flashing:
+            p.setBrush(QBrush(QColor(255, 255, 255, 230)))   # bright white flash
+        elif self._hovered:
+            p.setBrush(QBrush(QColor(255, 255, 255, 70)))
+        else:
+            p.setBrush(QBrush(QColor(255, 255, 255, 35)))
+
         p.drawEllipse(cx - r, cy - r, r * 2, r * 2)
-        pm = get_icon_pixmap('camera', 28, QColor(255, 255, 255, 230))
+        icon_col = QColor(0, 0, 0, 180) if self._flashing else QColor(255, 255, 255, 230)
+        pm = get_icon_pixmap('camera', 28, icon_col)
+        p.drawPixmap((s - pm.width()) // 2, (s - pm.height()) // 2, pm)
+        p.end()
+
+
+# ---------------------------------------------------------------------------
+# Circular video record / stop button
+
+class RecordButton(OverlayWidget):
+    """Red-ringed circle button. Blinks red while recording."""
+
+    BLINK_MS = 500   # blink half-period in milliseconds
+
+    def __init__(self, size: int = 64, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(size, size)
+        self._size      = size
+        self._callback  = None
+        self._hovered   = False
+        self._blink_on  = True
+        self._last_press = 0.0
+        self.setAttribute(Qt.WA_Hover)
+        self.installEventFilter(self)
+
+        self._blink_timer = QTimer(self)
+        self._blink_timer.setInterval(self.BLINK_MS)
+        self._blink_timer.timeout.connect(self._tick_blink)
+
+    def set_callback(self, fn):
+        self._callback = fn
+
+    def _tick_blink(self):
+        self._blink_on = not self._blink_on
+        self.update()
+
+    def update_state(self):
+        if globals.primary.isRecording:
+            if not self._blink_timer.isActive():
+                self._blink_on = True
+                self._blink_timer.start()
+        else:
+            self._blink_timer.stop()
+            self._blink_on = True
+        self.update()
+
+    def eventFilter(self, obj, event):
+        t = event.type()
+        if t == QEvent.HoverEnter:
+            self._hovered = True;  self.update()
+        elif t == QEvent.HoverLeave:
+            self._hovered = False; self.update()
+        elif t == QEvent.MouseButtonPress:
+            now = time.monotonic()
+            # Shorter cooldown when stopping so it feels responsive
+            cooldown = 0.6 if globals.primary.isRecording else 1.5
+            if now - self._last_press >= cooldown:
+                self._last_press = now
+                if self._callback:
+                    self._callback()
+            return True
+        return super().eventFilter(obj, event)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        s  = self._size
+        cx, cy, r = s // 2, s // 2, s // 2 - 4
+
+        recording = globals.primary.isRecording
+
+        if recording:
+            # Blinking red fill
+            fill = C_REC if self._blink_on else C_REC.darker(170)
+            p.setPen(QPen(C_REC_RING, 3))
+            p.setBrush(QBrush(fill))
+            p.drawEllipse(cx - r, cy - r, r * 2, r * 2)
+            pm = get_icon_pixmap('stop', 26, QColor(255, 255, 255))
+        else:
+            # Dark fill, red ring
+            fill_alpha = 60 if self._hovered else 30
+            p.setPen(QPen(C_REC_RING, 3))
+            p.setBrush(QBrush(QColor(255, 255, 255, fill_alpha)))
+            p.drawEllipse(cx - r, cy - r, r * 2, r * 2)
+            pm = get_icon_pixmap('video', 26, QColor(255, 255, 255, 210))
 
         p.drawPixmap((s - pm.width()) // 2, (s - pm.height()) // 2, pm)
         p.end()
@@ -1070,7 +1183,7 @@ class SettingsPanel(OverlayWidget):
         timer_val = 'Off' if s.timer == 0 else f'{s.timer} s'
         values = {
             'Exposure':  s.exposureMode,
-            'Metering':  {'CentreWeighted': 'Centre', 'Spot': 'Spot',
+            'Metering':  {'CentreWeighted': 'Center', 'Spot': 'Spot',
                           'Matrix': 'Matrix'}.get(s.meteringMode, s.meteringMode),
             'White Bal': s.awbMode,
             'Program':   'Auto (P)' if s.programMode == 'auto' else 'Manual (M)',
