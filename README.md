@@ -7,7 +7,7 @@
 
 ## Getting Started
 
-- Use [Raspberry Pi Imager](https://www.raspberrypi.com/software) to install Raspberry Pi OS *(Trixie)* on a microSD card
+- Use [Raspberry Pi Imager](https://www.raspberrypi.com/software) to install Raspberry Pi OS Lite *(Trixie)* on a microSD card
 - Use [raspi-config](https://www.raspberrypi.org/documentation/configuration/raspi-config.md) to verify that:
   - CSI camera interface is enabled
   - WiFi connection is configured
