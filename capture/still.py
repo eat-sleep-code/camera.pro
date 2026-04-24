@@ -24,6 +24,12 @@ class Still:
 
 		console.info('Capturing image: ' + filePath)
 
+		# Ensure the stored preview config has a 'raw' key so that
+		# switch_mode_and_capture_request can switch back without a KeyError
+		# on older/newer picamera2 versions that omit it from preview configs.
+		if hasattr(module, 'camera_config') and isinstance(module.camera_config, dict):
+			module.camera_config.setdefault('raw', None)
+
 		request = module.switch_mode_and_capture_request(stillConfiguration)
 		request.save('main', filePath)
 

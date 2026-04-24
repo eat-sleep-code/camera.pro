@@ -173,7 +173,6 @@ class CamButton(QWidget):
         self.setFixedSize(size, size)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_Hover)
-        self.setAttribute(Qt.WA_AcceptTouchEvents)   # receive TouchBegin directly
         self.installEventFilter(self)
         self._callback = None
 
@@ -196,7 +195,7 @@ class CamButton(QWidget):
         elif t == QEvent.HoverLeave:
             self._hovered = False
             self.update()
-        elif t in (QEvent.MouseButtonPress, QEvent.TouchBegin):
+        elif t == QEvent.MouseButtonPress:
             if self._callback:
                 self._callback()
             return True
@@ -373,6 +372,8 @@ class LeftPanel(OverlayWidget):
             self._active_control = None
             if self._stepper:
                 self._stepper.hide()
+            for b in self._buttons.values():
+                b.set_selected(False)
         else:
             # Lazy-create stepper so self.parent() is the QPicamera2 widget
             if self._stepper is None:
@@ -548,7 +549,6 @@ class CaptureButton(OverlayWidget):
         self._callback = None
         self._hovered = False
         self.setAttribute(Qt.WA_Hover)
-        self.setAttribute(Qt.WA_AcceptTouchEvents)   # receive TouchBegin directly
         self.installEventFilter(self)
 
     def set_callback(self, fn):
@@ -563,7 +563,7 @@ class CaptureButton(OverlayWidget):
             self._hovered = True; self.update()
         elif t == QEvent.HoverLeave:
             self._hovered = False; self.update()
-        elif t in (QEvent.MouseButtonPress, QEvent.TouchBegin):
+        elif t == QEvent.MouseButtonPress:
             if self._callback:
                 self._callback()
             return True
@@ -801,9 +801,7 @@ class CameraWindow(QMainWindow):
         self._settings_panel.hide()
         self._settings_panel.raise_()
 
-        self._preview.setAttribute(Qt.WA_AcceptTouchEvents)
         self._preview.mousePressEvent = self._on_viewfinder_tap
-        self._preview.touchEvent = self._on_viewfinder_touch
 
         # Frame paint timer (~30 fps)
         self._frame_timer = QTimer(self)

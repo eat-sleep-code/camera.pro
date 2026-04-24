@@ -2,6 +2,7 @@ from functions import Console, Echo
 from globals import Config, State
 import datetime
 import os
+import pwd
 
 console = Console()
 echo = Echo()
@@ -12,7 +13,12 @@ class File:
 		config = Config()
 		now = datetime.datetime.now()
 		datestamp = now.strftime('%Y%m%d')
-		outputDirectory = os.path.expanduser(config['outputDirectory'])
+		sudo_user = os.environ.get('SUDO_USER')
+		if sudo_user:
+			home = pwd.getpwnam(sudo_user).pw_dir
+			outputDirectory = config['outputDirectory'].replace('~', home, 1)
+		else:
+			outputDirectory = os.path.expanduser(config['outputDirectory'])
 		if not outputDirectory.endswith(os.sep):
 			outputDirectory += os.sep
 		try:
