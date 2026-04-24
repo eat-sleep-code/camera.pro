@@ -131,8 +131,8 @@ def get_icon_pixmap(name: str, size: int = 24, color: QColor = None) -> QPixmap:
 C_BG         = QColor(0, 0, 0, 0)           # fully transparent
 C_BAR        = QColor(0, 0, 0, 180)         # top/bottom bars
 C_PANEL      = QColor(0, 0, 0, 140)         # side panel background
-C_BTN        = QColor(255, 255, 255, 22)    # normal button fill
-C_BTN_HOV    = QColor(255, 255, 255, 50)    # hover fill
+C_BTN        = QColor(255, 255, 255, 38)    # normal button fill
+C_BTN_HOV    = QColor(255, 255, 255, 65)    # hover fill
 C_BTN_ACT    = QColor(255, 255, 255, 80)    # active/pressed fill
 C_BTN_SEL    = QColor(255, 200, 0, 200)     # selected/on accent (amber)
 C_REC        = QColor(220, 40, 40, 255)     # record / danger red
@@ -425,6 +425,11 @@ class LeftPanel(OverlayWidget):
     def _on_metering(self, direction=None): self._actions.SetMeteringMode()
     def _on_bracket(self, direction): self._actions.SetBracket(direction)
 
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.fillRect(self.rect(), C_PANEL)
+        p.end()
+
     def close_stepper(self):
         self._active_control = None
         for b in self._buttons.values():
@@ -572,6 +577,11 @@ class RightPanel(OverlayWidget):
         w = self.window()
         if hasattr(w, 'toggle_settings'):
             w.toggle_settings()
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.fillRect(self.rect(), C_PANEL)
+        p.end()
 
     def update_state(self):
         self._photo_btn.update_state()
