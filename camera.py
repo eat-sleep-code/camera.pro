@@ -26,6 +26,11 @@ os.environ.setdefault('LIBCAMERA_LOG_LEVELS', '3')
 # Hide the VT console cursor and blank the terminal so it doesn't bleed
 # through the framebuffer while Qt is initialising.  Restored on exit.
 try:
+    with open('/sys/class/graphics/fbcon/cursor_blink', 'w') as _f:
+        _f.write('0')              # disable fbcon hardware cursor blink
+except Exception:
+    pass
+try:
     with open('/dev/tty1', 'wb') as _tty:
         _tty.write(b'\033[?25l')   # hide cursor
         _tty.write(b'\033[2J')     # clear screen
@@ -145,6 +150,11 @@ except Exception:
     pass
 
 # Restore the VT cursor so the terminal is usable if dropped back to console.
+try:
+    with open('/sys/class/graphics/fbcon/cursor_blink', 'w') as _f:
+        _f.write('1')              # re-enable fbcon cursor blink
+except Exception:
+    pass
 try:
     with open('/dev/tty1', 'wb') as _tty:
         _tty.write(b'\033[?25h')   # show cursor
