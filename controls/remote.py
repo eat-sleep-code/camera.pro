@@ -10,7 +10,6 @@ class Remote:
 	def __init__(self):
 		try:
 			device = evdev.InputDevice('/dev/input/event1')
-			console.debug(device)
 
 			for event in device.read_loop():
 				if event.type == evdev.ecodes.EV_KEY:

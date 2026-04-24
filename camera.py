@@ -55,7 +55,7 @@ from controls.remote import Remote
 from controls.touchscreen import Touchscreen
 import globals
 
-version = '2024.02.24'
+version = '2026.04.24'
 
 # ---------------------------------------------------------------------------
 

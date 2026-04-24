@@ -962,8 +962,11 @@ class CameraWindow(QMainWindow):
         self._bottom.raise_()
         self._bottom.set_mode_changed_callback(self._right.update_state)
 
-        self._settings_panel = SettingsPanel(W // 2, vp_h, self._preview)
-        self._settings_panel.setGeometry(W // 4, vp_y, W // 2, vp_h)
+        self._settings_panel = SettingsPanel(W // 2, self._preview)
+        self._settings_panel.adjustSize()
+        panel_h = self._settings_panel.sizeHint().height()
+        panel_y = vp_y + max(0, (vp_h - panel_h) // 2)
+        self._settings_panel.setGeometry(W // 4, panel_y, W // 2, panel_h)
         self._settings_panel.hide()
         self._settings_panel.raise_()
 
@@ -1072,23 +1075,23 @@ class CameraWindow(QMainWindow):
 class SettingsPanel(OverlayWidget):
     """Full-height overlay panel for camera settings."""
 
-    _ROW_H   = 52    # height of each setting row
-    _LBL_SZ  = 13    # key label font size
-    _VAL_SZ  = 16    # value / button font size
+    _ROW_H   = 48    # height of each setting row
+    _LBL_SZ  = 14    # key label font size
+    _VAL_SZ  = 18    # value / button font size
 
-    def __init__(self, width: int, height: int, parent=None):
+    def __init__(self, width: int, parent=None):
         super().__init__(parent)
-        self.setFixedSize(width, height)
+        self.setFixedWidth(width)
         self._actions = Actions()
 
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(18, 16, 18, 16)
+        outer.setContentsMargins(20, 18, 20, 18)
         outer.setSpacing(0)
 
         # ── Title ──────────────────────────────────────────────────────────
         title = QLabel('⚙  Settings', self)
         title.setStyleSheet(
-            'color: white; font-size: 20px; font-weight: bold; padding-bottom: 10px;'
+            'color: white; font-size: 22px; font-weight: bold; padding-bottom: 11px;'
         )
         outer.addWidget(title)
 
@@ -1096,7 +1099,7 @@ class SettingsPanel(OverlayWidget):
         sep.setFrameShape(QFrame.HLine)
         sep.setStyleSheet('color: rgba(255,255,255,40);')
         outer.addWidget(sep)
-        outer.addSpacing(6)
+        outer.addSpacing(7)
 
         # ── Setting rows ───────────────────────────────────────────────────
         self._rows: dict[str, QLabel] = {}
@@ -1137,15 +1140,14 @@ class SettingsPanel(OverlayWidget):
             outer.addWidget(row_widget)
             outer.addSpacing(2)
 
-        outer.addStretch()
-
         # ── Close ──────────────────────────────────────────────────────────
+        outer.addSpacing(4)
         close_btn = QPushButton('✕  Close', self)
         close_btn.setObjectName('settingsClose')
-        close_btn.setFixedHeight(48)
+        close_btn.setFixedHeight(53)
         close_btn.setStyleSheet(
             'background: rgba(255,255,255,0.15); color: white; '
-            'font-size: 16px; font-weight: 600; border-radius: 10px;'
+            'font-size: 18px; font-weight: 600; border-radius: 10px;'
         )
         close_btn.clicked.connect(self.hide)
         outer.addWidget(close_btn)
