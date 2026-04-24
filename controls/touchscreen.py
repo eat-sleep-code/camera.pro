@@ -131,7 +131,7 @@ def get_icon_pixmap(name: str, size: int = 24, color: QColor = None) -> QPixmap:
 C_BG         = QColor(0, 0, 0, 0)           # fully transparent
 C_BAR        = QColor(0, 0, 0, 180)         # top/bottom bars
 C_PANEL      = QColor(0, 0, 0, 140)         # side panel background
-C_BTN        = QColor(255, 255, 255, 38)    # normal button fill
+C_BTN        = QColor(0, 0, 0, 45)    		# normal button fill
 C_BTN_HOV    = QColor(255, 255, 255, 65)    # hover fill
 C_BTN_ACT    = QColor(255, 255, 255, 80)    # active/pressed fill
 C_BTN_SEL    = QColor(255, 200, 0, 200)     # selected/on accent (amber)
@@ -425,11 +425,6 @@ class LeftPanel(OverlayWidget):
     def _on_metering(self, direction=None): self._actions.SetMeteringMode()
     def _on_bracket(self, direction): self._actions.SetBracket(direction)
 
-    def paintEvent(self, event):
-        p = QPainter(self)
-        p.fillRect(self.rect(), C_PANEL)
-        p.end()
-
     def close_stepper(self):
         self._active_control = None
         for b in self._buttons.values():
@@ -577,11 +572,6 @@ class RightPanel(OverlayWidget):
         w = self.window()
         if hasattr(w, 'toggle_settings'):
             w.toggle_settings()
-
-    def paintEvent(self, event):
-        p = QPainter(self)
-        p.fillRect(self.rect(), C_PANEL)
-        p.end()
 
     def update_state(self):
         self._photo_btn.update_state()
@@ -975,7 +965,7 @@ class CameraWindow(QMainWindow):
         self._settings_panel = SettingsPanel(W // 2, self._preview)
         self._settings_panel.adjustSize()
         panel_h = self._settings_panel.sizeHint().height()
-        panel_y = vp_y + max(0, (vp_h - panel_h) // 2) - 10  # -10 px to visually align the panel better with the viewfinder content
+        panel_y = vp_y + max(0, (vp_h - panel_h) // 2) - 20  # -20 px to visually align the panel better with the viewfinder content
         self._settings_panel.setGeometry(W // 4, panel_y, W // 2, panel_h)
         self._settings_panel.hide()
         self._settings_panel.raise_()
