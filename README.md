@@ -64,6 +64,7 @@ Camera PRO runs as root (required for framebuffer and camera hardware access) vi
 | `camera-enable` | Enable autostart on boot and start immediately |
 | `camera-disable` | Disable autostart and stop immediately |
 | `camera-status` | Show service status and tail the live log |
+| `camera-update` | Download and run the latest install script |
 
 > [!NOTE]
 > Reload your shell after installation (`bash` or open a new terminal) for the aliases to become available.

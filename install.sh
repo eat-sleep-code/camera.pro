@@ -67,11 +67,12 @@ echo ''
 echo -e '\033[93mSetting up aliases... \033[0m'
 sudo touch ~/.bash_aliases
 sudo sed -i '/\b\(function camera\)\b/d' ~/.bash_aliases
-sudo sed -i '/\b\(camera-enable\|camera-disable\|camera-status\|touch-enable\|touch-disable\|touch-status\)\b/d' ~/.bash_aliases
+sudo sed -i '/\b\(camera-enable\|camera-disable\|camera-status\|camera-update\|touch-enable\|touch-disable\|touch-status\)\b/d' ~/.bash_aliases
 sudo sed -i '$ a function camera { sudo ~/camera.pro-venv/bin/python3 ~/camera.pro/camera.py "$@"; }' ~/.bash_aliases
 sudo sed -i '$ a alias camera-enable="sudo systemctl enable camera && sudo systemctl start camera"' ~/.bash_aliases
 sudo sed -i '$ a alias camera-disable="sudo systemctl disable camera && sudo systemctl stop camera"' ~/.bash_aliases
 sudo sed -i '$ a alias camera-status="sudo systemctl status camera && sudo journalctl -u camera -f"' ~/.bash_aliases
+sudo sed -i '$ a alias camera-update="wget -q https://raw.githubusercontent.com/eat-sleep-code/camera.pro/master/install.sh -O ~/install.sh && sudo chmod +x ~/install.sh && ~/install.sh"' ~/.bash_aliases
 sudo sed -i '$ a alias touch-enable="sudo systemctl enable ft5506-touch && sudo systemctl start ft5506-touch"' ~/.bash_aliases
 sudo sed -i '$ a alias touch-disable="sudo systemctl disable ft5506-touch && sudo systemctl stop ft5506-touch"' ~/.bash_aliases
 sudo sed -i '$ a alias touch-status="sudo systemctl status ft5506-touch && sudo journalctl -u ft5506-touch -f"' ~/.bash_aliases
