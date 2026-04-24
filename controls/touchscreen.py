@@ -377,7 +377,7 @@ class LeftPanel(OverlayWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 8, 0, 8)
-        layout.setSpacing(4)
+        layout.setSpacing(5)
 
         self._buttons = {}
         for icon, lbl, cb in controls:
@@ -413,7 +413,7 @@ class LeftPanel(OverlayWidget):
             # btn.y()  = button top inside LeftPanel (set by QVBoxLayout)
             # Shift up by half the height difference so centres align.
             btn_top_in_preview = self.y() + btn.y()
-            popup_y = btn_top_in_preview - (StepperPopup.POPUP_H - BTN_H) // 2
+            popup_y = btn_top_in_preview - (StepperPopup.POPUP_H - BTN_H) // 2 - 2
             self._stepper.move(PANEL_W + 4, popup_y)
             self._stepper.show()
             self._stepper.raise_()
@@ -530,7 +530,7 @@ class RightPanel(OverlayWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 8, 0, 8)
-        layout.setSpacing(4)
+        layout.setSpacing(5)
 
         # Photo capture — always captures a still regardless of mode state.
         self._photo_btn = CaptureButton(BTN_H, self)
