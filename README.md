@@ -1,13 +1,13 @@
 # Camera PRO
 
 > [!WARNING]
- This software is functional but still undergoing testing.   Feel free to raise any issues you may
+ This software is a fully functional beta and is still undergoing testing. Please report any issues you encounter.
 
 ---
 
 ## Getting Started
 
-- Use [Raspberry Pi Imager](https://www.raspberrypi.com/software) to install Raspberry Pi OS *(Bookworm)* on a microSD card
+- Use [Raspberry Pi Imager](https://www.raspberrypi.com/software) to install Raspberry Pi OS *(Trixie)* on a microSD card
 - Use [raspi-config](https://www.raspberrypi.org/documentation/configuration/raspi-config.md) to verify that:
   - CSI camera interface is enabled
   - WiFi connection is configured
