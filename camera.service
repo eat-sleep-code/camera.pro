@@ -1,0 +1,20 @@
+[Unit]
+Description=Camera PRO
+After=multi-user.target
+
+[Service]
+Type=simple
+User=root
+# SUDO_USER lets the app resolve ~/ paths to the real user's home directory
+Environment=SUDO_USER=pi
+Environment=HOME=/root
+Environment=QT_QPA_PLATFORM=linuxfb
+Environment=QT_QPA_GENERIC_PLUGINS=evdevtouch
+Environment=LIBCAMERA_LOG_LEVELS=3
+WorkingDirectory=/home/pi/camera.pro
+ExecStart=/home/pi/camera.pro-venv/bin/python3 /home/pi/camera.pro/camera.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

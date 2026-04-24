@@ -1,18 +1,16 @@
 # Camera PRO
 
 > [!WARNING]
-This is not yet a working application.   Once complete, it will replace the current [Camera](https://github.com/eat-sleep-code/camera) program.
-
-The below information is incomplete / inaccurate at this time.
+ This software is functional but still undergoing testing.   Feel free to raise any issues you may
 
 ---
 
 ## Getting Started
 
 - Use [Raspberry Pi Imager](https://www.raspberrypi.com/software) to install Raspberry Pi OS *(Bookworm)* on a microSD card
-- Use [raspi-config](https://www.raspberrypi.org/documentation/configuration/raspi-config.md) to:
-  - Enable the CSI camera interface
-  - Set up your WiFi connection
+- Use [raspi-config](https://www.raspberrypi.org/documentation/configuration/raspi-config.md) to verify that:
+  - CSI camera interface is enabled
+  - WiFi connection is configured
 - Execute the following to update all installed software to the latest version(s):
 ```bash
 sudo apt update && sudo apt full-upgrade -y && sudo apt autoremove -y && sudo apt autoclean
@@ -58,20 +56,26 @@ camera
 
 ## Autostart
 
-### Enable
+Camera PRO runs as root (required for framebuffer and camera hardware access) via a systemd service.  The install script sets up the service and adds the following shell aliases for convenience:
 
-To enable autostart of the program, execute the following command:
+### Commands
+| Alias | Action |
+|---|---|
+| `camera-enable` | Enable autostart on boot and start immediately |
+| `camera-disable` | Disable autostart and stop immediately |
+| `camera-status` | Show service status and tail the live log |
 
-```
-sudo mv /etc/service/camera.pro/run.disabled /etc/service/camera.pro/run
-```
+> [!NOTE]
+> Reload your shell after installation (`bash` or open a new terminal) for the aliases to become available.
 
-### Disable
 
-To disable autostart of the program, execute the following command:
+### Manual Installation
 
-```
-sudo mv /etc/service/camera.pro/run /etc/service/camera.pro/run.disabled
+```bash
+sudo cp ~/camera.pro/camera.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable camera
+sudo systemctl start camera
 ```
 
 ---
@@ -80,18 +84,27 @@ sudo mv /etc/service/camera.pro/run /etc/service/camera.pro/run.disabled
 
 We encountered issues getting touch to work with a legacy Waveshare display in combination with Raspberry Pi OS Lite (Trixie).   This display featured the FT5506 touch panel controller.   To address this, we developed a custom driver.   If you are working with one of these older displays, you will need to enable this custom driver.
 
+### Commands
 
-```
+| Alias | Action |
+|---|---|
+| `touch-enable` | Enable the FT5506 touch driver on boot and start immediately |
+| `touch-disable` | Disable the FT5506 touch driver and stop immediately |
+| `touch-status` | Show touch driver status and tail the live log |
+
+
+### Manual Installation
+```bash
 # 1. Copy the service file and install it
 sudo cp ~/camera.pro/ft5506-touch.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable ft5506-touch
 
 # 2. Rebuild and reinstall the DT overlay (disables kernel driver)
 dtc -@ -I dts -O dtb -o /tmp/ft5506-poll.dtbo /tmp/ft5506-poll.dts
 sudo cp /tmp/ft5506-poll.dtbo /boot/firmware/overlays/ft5506-poll.dtbo
 
-# 3. Reboot — systemd will start the touch daemon automatically
+# 3. Enable the touch driver and reboot
+touch-enable
 sudo reboot
 ```
 ---

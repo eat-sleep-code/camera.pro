@@ -51,17 +51,15 @@ sudo chown -R $USER:$USER ~/logs
 
 
 echo ''
-echo -e '\033[093mSetting up autostart daemon... \033[0m'
+echo -e '\033[93mSetting up autostart service... \033[0m'
 cd ~
-echo 'Removing legacy service instance...'
-sudo svc -d /etc/service/camera.pro
+echo 'Removing legacy daemontools service instance (if present)...'
+sudo svc -d /etc/service/camera.pro 2>/dev/null || true
 sudo rm -Rf /etc/service/camera.pro
-echo 'Configuring new service instance...'
-sudo mkdir -p /etc/service/camera.pro
-sudo mv ~/camera.pro/run.disabled /etc/service/camera.pro/run.disabled
-sudo chmod +x /etc/service/camera.pro/run.disabled
-sudo chown -R root:root /etc/service/camera.pro
-echo 'Please see the README file for more information on configuring autostart.'
+echo 'Installing systemd service...'
+sudo cp ~/camera.pro/camera.service /etc/systemd/system/
+sudo systemctl daemon-reload
+echo 'Please see the README file for more information on enabling autostart.'
 
 
 cd ~
@@ -69,8 +67,17 @@ echo ''
 echo -e '\033[93mSetting up aliases... \033[0m'
 sudo touch ~/.bash_aliases
 sudo sed -i '/\b\(function camera\)\b/d' ~/.bash_aliases
+sudo sed -i '/\b\(camera-enable\|camera-disable\|camera-status\|touch-enable\|touch-disable\|touch-status\)\b/d' ~/.bash_aliases
 sudo sed -i '$ a function camera { sudo ~/camera.pro-venv/bin/python3 ~/camera.pro/camera.py "$@"; }' ~/.bash_aliases
-echo -e 'You may use \e[1mcamera <options>\e[0m to launch the program.'
+sudo sed -i '$ a alias camera-enable="sudo systemctl enable camera && sudo systemctl start camera"' ~/.bash_aliases
+sudo sed -i '$ a alias camera-disable="sudo systemctl disable camera && sudo systemctl stop camera"' ~/.bash_aliases
+sudo sed -i '$ a alias camera-status="sudo systemctl status camera && sudo journalctl -u camera -f"' ~/.bash_aliases
+sudo sed -i '$ a alias touch-enable="sudo systemctl enable ft5506-touch && sudo systemctl start ft5506-touch"' ~/.bash_aliases
+sudo sed -i '$ a alias touch-disable="sudo systemctl disable ft5506-touch && sudo systemctl stop ft5506-touch"' ~/.bash_aliases
+sudo sed -i '$ a alias touch-status="sudo systemctl status ft5506-touch && sudo journalctl -u ft5506-touch -f"' ~/.bash_aliases
+echo -e 'You may use \e[1mcamera\e[0m to launch the program manually.'
+echo -e 'You may use \e[1mcamera-enable\e[0m / \e[1mcamera-disable\e[0m / \e[1mcamera-status\e[0m to manage the camera service.'
+echo -e 'You may use \e[1mtouch-enable\e[0m / \e[1mtouch-disable\e[0m / \e[1mtouch-status\e[0m to manage the FT5506 touch driver.'
 echo ''
 echo 'To use the automatic YouTube upload feature, you will need to update the youtube/config.json.'
 echo 'Please see the README file for more information.'

@@ -965,7 +965,7 @@ class CameraWindow(QMainWindow):
         self._settings_panel = SettingsPanel(W // 2, self._preview)
         self._settings_panel.adjustSize()
         panel_h = self._settings_panel.sizeHint().height()
-        panel_y = vp_y + max(0, (vp_h - panel_h) // 2)
+        panel_y = vp_y + max(0, (vp_h - panel_h) // 2) - 10  # -10 px to visually align the panel better with the viewfinder content
         self._settings_panel.setGeometry(W // 4, panel_y, W // 2, panel_h)
         self._settings_panel.hide()
         self._settings_panel.raise_()
