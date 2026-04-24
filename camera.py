@@ -1,5 +1,7 @@
 import os
 import sys
+import signal
+import threading
 
 # ---------------------------------------------------------------------------
 # Qt platform plugin — must be set before any Qt import.
@@ -21,10 +23,30 @@ os.environ.setdefault('QT_QPA_GENERIC_PLUGINS', 'evdevtouch')
 os.environ.setdefault('LIBCAMERA_LOG_LEVELS', '3')
 
 from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QTimer
 
 # QApplication must be the very first Qt object created — before any import
 # that touches picamera2's Qt previews, qtawesome, or any QWidget/QColor/QFont.
 _app = QApplication(sys.argv)
+
+# ---------------------------------------------------------------------------
+# Signal handling
+#
+# Qt's C++ event loop blocks Python's bytecode evaluator, so SIGINT (Ctrl+C)
+# is received by the OS but KeyboardInterrupt is never raised — the signal
+# just disappears.  Fix: a 200 ms null-timer lets Python regain the GIL
+# briefly every tick so it can dispatch any pending signals.
+
+_signal_timer = QTimer()
+_signal_timer.start(200)
+_signal_timer.timeout.connect(lambda: None)
+
+def _request_quit(signum=None, frame=None):
+    """Ask Qt to exit its event loop cleanly."""
+    _app.quit()
+
+signal.signal(signal.SIGINT,  _request_quit)
+signal.signal(signal.SIGTERM, _request_quit)
 
 # ---------------------------------------------------------------------------
 
@@ -56,7 +78,44 @@ if globals.cameras.count > 1 and globals.secondary is not None:
     else:
         console.info('Camera 2 does not support autofocus.')
 
+# ---------------------------------------------------------------------------
+# Cleanup — runs when QApplication.quit() is called (before event loop exits).
+
+def _on_quit():
+    """Stop camera hardware so it doesn't hold resources after exit."""
+    for unit_name in ('primary', 'secondary'):
+        unit = getattr(globals, unit_name, None)
+        if unit is None:
+            continue
+        try:
+            if unit.isRecording:
+                unit.module.stop_recording()
+            unit.module.stop()
+        except Exception:
+            pass
+
+_app.aboutToQuit.connect(_on_quit)
+
+# ---------------------------------------------------------------------------
+# Remote control runs in a daemon thread so it is killed automatically when
+# the main thread exits.  If it ran after Touchscreen() it would block forever
+# because Remote.__init__ contains an evdev read_loop().
+threading.Thread(target=Remote, daemon=True, name='remote').start()
+
 # Camera configure + start is deferred to CameraWindow.__init__ so that
 # QPicamera2 registers its frame callback before frames start arriving.
+# This call blocks until QApplication.quit() is invoked (e.g. Ctrl+C).
 touchscreen = Touchscreen()
-remote = Remote()
+
+# ---------------------------------------------------------------------------
+# Post-exit framebuffer blank
+#
+# linuxfb leaves the last rendered frame painted on the display after the
+# process exits — the image just sits there, frozen.  Writing zeros to
+# /dev/fb0 blanks the screen so it doesn't look like the app is still running.
+
+try:
+    with open('/dev/fb0', 'wb') as _fb:
+        _fb.write(b'\x00' * (800 * 480 * 4))
+except Exception:
+    pass
