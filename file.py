@@ -12,15 +12,11 @@ class File:
 		config = Config()
 		now = datetime.datetime.now()
 		datestamp = now.strftime('%Y%m%d')
-		outputDirectory = config['outputDirectory']
+		outputDirectory = os.path.expanduser(config['outputDirectory'])
+		if not outputDirectory.endswith(os.sep):
+			outputDirectory += os.sep
 		try:
 			os.makedirs(outputDirectory, exist_ok = True)
-			try:
-				os.makedirs(outputDirectory + datestamp, exist_ok = True)
-			except OSError:
-				console.error('Creation of the output folder ' + outputDirectory + datestamp + ' failed!')
-				echo.on()
-				quit()
 		except OSError:
 			console.error(' ERROR: Creation of the output folder ' + outputDirectory + ' failed!')
 			echo.on()

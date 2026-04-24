@@ -43,14 +43,19 @@ class CameraUnit:
 			main={"size": (800, 600)},
 			colour_space=ColorSpace.Sycc()
 		)
+		self.previewConfiguration.setdefault('raw', None)
+
 		self.stillConfiguration = self.module.create_still_configuration(
 			main={"size": self.module.sensor_resolution},
 			colour_space=ColorSpace.Sycc()
 		)
+		self.stillConfiguration.setdefault('raw', None)
+
 		self.videoConfiguration = self.module.create_video_configuration(
 			main={"size": (1920, 1080)},
 			colour_space=ColorSpace.Rec709()
 		)
+		self.videoConfiguration.setdefault('raw', None)
 
 		self.rotation: int = config['cameras'][config_key]['rotation'] or 0
 		self.raw: bool = config['cameras'][config_key]['raw']

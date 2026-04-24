@@ -76,6 +76,26 @@ sudo mv /etc/service/camera.pro/run /etc/service/camera.pro/run.disabled
 
 ---
 
+## Legacy Displays
+
+We encountered issues getting touch to work with a legacy Waveshare display and Pi OS Trixie.   This required the creation of a custom touch driver.   If you encounter issues with older ft5506 touch controllers, you can try enabling this driver.
+
+
+```
+# 1. Copy the service file and install it
+sudo cp ~/camera.pro/ft5506-touch.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable ft5506-touch
+
+# 2. Rebuild and reinstall the DT overlay (disables kernel driver)
+dtc -@ -I dts -O dtb -o /tmp/ft5506-poll.dtbo /tmp/ft5506-poll.dts
+sudo cp /tmp/ft5506-poll.dtbo /boot/firmware/overlays/ft5506-poll.dtbo
+
+# 3. Reboot — systemd will start the touch daemon automatically
+sudo reboot
+```
+---
+
 ## Infrared Cameras
 If you are using an infrared (IR) camera, you may need to modify the Auto White Balance (AWB) mode at boot time.
 
