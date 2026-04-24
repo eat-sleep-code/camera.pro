@@ -76,9 +76,9 @@ sudo mv /etc/service/camera.pro/run /etc/service/camera.pro/run.disabled
 
 ---
 
-## Legacy Displays
+## Legacy Display Touch Support
 
-We encountered issues getting touch to work with a legacy Waveshare display and Pi OS Trixie.   This required the creation of a custom touch driver.   If you encounter issues with older ft5506 touch controllers, you can try enabling this driver.
+We encountered issues getting touch to work with a legacy Waveshare display in combination with Raspberry Pi OS Lite (Trixie).   This display featured the FT5506 touch panel controller.   To address this, we developed a custom driver.   If you are working with one of these older displays, you will need to enable this custom driver.
 
 
 ```

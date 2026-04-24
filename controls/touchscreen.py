@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QPushButton,
     QHBoxLayout, QVBoxLayout, QSizePolicy, QFrame,
 )
-from PySide6.QtCore import Qt, QTimer, QRect, QPoint, QSize, QEvent
+from PySide6.QtCore import Qt, QTimer, QRect, QPoint, QSize, QEvent, QObject
 from PySide6.QtGui import (
     QPainter, QPen, QColor, QFont, QPixmap,
     QPainterPath, QBrush,
@@ -389,9 +389,8 @@ class LeftPanel(OverlayWidget):
             btn = self._buttons[name]
             btn_pos = btn.mapTo(self.parent(), QPoint(0, 0))
             self._stepper.set_control(name, cycle_fn)
-            # Centre the popup vertically on the tapped button
-            popup_y = btn_pos.y() + (BTN_H - StepperPopup.POPUP_H) // 2
-            self._stepper.move(PANEL_W + 4, popup_y)
+            # Align popup top with the tapped button's top
+            self._stepper.move(PANEL_W + 4, btn_pos.y())
             self._stepper.show()
             self._stepper.raise_()
 
@@ -459,18 +458,18 @@ class StepperPopup(OverlayWidget):
         self.setLayout(layout)
 
     def set_control(self, name: str, fn):
+        self._current_name = name
         self._down_btn.set_callback(lambda: self._fire(fn, 'down'))
         self._up_btn.set_callback(lambda: self._fire(fn, 'up'))
         self._update_value(name)
 
     def _fire(self, fn, direction):
         fn(direction)
-        # Re-read value from state
-        self._update_from_state()
+        self._update_value(self._current_name)
 
     def _update_from_state(self):
-        # Refresh label after any action
-        self.update()
+        if hasattr(self, '_current_name'):
+            self._update_value(self._current_name)
 
     def _update_value(self, name: str):
         s = globals.state
@@ -670,17 +669,41 @@ class FocusBox(OverlayWidget):
 # ---------------------------------------------------------------------------
 # Bottom mode bar
 
+class _BtnTapFilter(QObject):
+    """Event filter that gives any QWidget a debounced tap callback.
+
+    QPushButton inside an OverlayWidget (WA_TranslucentBackground +
+    WA_NoSystemBackground) can be skipped by Qt's touch-synthesis hit-test.
+    Installing this filter directly on the button bypasses that problem.
+    """
+    def __init__(self, widget: QWidget, fn, parent=None):
+        super().__init__(parent)
+        self._fn  = fn
+        self._last = 0.0
+        widget.installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.MouseButtonPress:
+            now = time.monotonic()
+            if now - self._last >= 0.45:
+                self._last = now
+                self._fn()
+            return True
+        return False
+
+
 class BottomBar(OverlayWidget):
     def __init__(self, width: int, parent=None):
         super().__init__(parent)
         self.setFixedSize(width, BAR_H + 12)
+        self._filters = []   # keep filter objects alive
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(16, 0, 16, 0)
+        layout.setContentsMargins(16, 4, 16, 4)
         layout.setSpacing(8)
 
-        self._photo_btn = self._mode_btn('photo', 'camera', 'PHOTO')
-        self._video_btn = self._mode_btn('video', 'video', 'VIDEO')
+        self._photo_btn = self._mode_btn('photo', 'PHOTO')
+        self._video_btn = self._mode_btn('video', 'VIDEO')
 
         layout.addWidget(self._photo_btn)
         layout.addWidget(self._video_btn)
@@ -693,14 +716,20 @@ class BottomBar(OverlayWidget):
         layout.addWidget(self._m_btn)
 
         self.setLayout(layout)
+        self._mode_changed_cb = None   # set by CameraWindow after construction
         self._refresh()
 
-    def _mode_btn(self, mode: str, icon: str, label: str) -> QPushButton:
+    def set_mode_changed_callback(self, fn):
+        """Called by CameraWindow so it can update the capture button immediately."""
+        self._mode_changed_cb = fn
+
+    def _mode_btn(self, mode: str, label: str) -> QPushButton:
         btn = QPushButton(f'  {label}', self)
         btn.setObjectName(f'modeBtn_{mode}')
         btn.setFixedHeight(36)
         btn.setFont(QFont('sans-serif', 10))
-        btn.clicked.connect(lambda: self._set_capture_mode(mode))
+        f = _BtnTapFilter(btn, lambda m=mode: self._set_capture_mode(m), btn)
+        self._filters.append(f)
         return btn
 
     def _prog_btn(self, label: str, mode: str) -> QPushButton:
@@ -708,12 +737,15 @@ class BottomBar(OverlayWidget):
         btn.setObjectName(f'progBtn_{mode}')
         btn.setFixedSize(40, 36)
         btn.setFont(QFont('sans-serif', 11))
-        btn.clicked.connect(lambda: self._set_program_mode(mode))
+        f = _BtnTapFilter(btn, lambda m=mode: self._set_program_mode(m), btn)
+        self._filters.append(f)
         return btn
 
     def _set_capture_mode(self, mode: str):
         globals.state.captureMode = mode
         self._refresh()
+        if self._mode_changed_cb:
+            self._mode_changed_cb()
 
     def _set_program_mode(self, mode: str):
         globals.state.programMode = mode
@@ -726,7 +758,6 @@ class BottomBar(OverlayWidget):
         self._video_btn.setProperty('selected', cm == 'video')
         self._p_btn.setProperty('selected', pm == 'auto')
         self._m_btn.setProperty('selected', pm == 'manual')
-        # Force style refresh
         for w in [self._photo_btn, self._video_btn, self._p_btn, self._m_btn]:
             w.style().unpolish(w)
             w.style().polish(w)
@@ -815,13 +846,16 @@ class CameraWindow(QMainWindow):
         self._bottom = BottomBar(W, self._preview)
         self._bottom.setGeometry(0, H - BAR_H - 12, W, BAR_H + 12)
         self._bottom.raise_()
+        self._bottom.set_mode_changed_callback(self._right.update_state)
 
         self._settings_panel = SettingsPanel(W // 2, vp_h, self._preview)
         self._settings_panel.setGeometry(W // 4, vp_y, W // 2, vp_h)
         self._settings_panel.hide()
         self._settings_panel.raise_()
 
-        self._preview.mousePressEvent = self._on_viewfinder_tap
+        # Install an event filter on _preview to handle viewfinder taps
+        # (used for AF point selection when hasAutofocus is True).
+        self._preview.installEventFilter(self)
 
         # Frame paint timer (~30 fps)
         self._frame_timer = QTimer(self)
@@ -902,6 +936,13 @@ class CameraWindow(QMainWindow):
         else:
             self._settings_panel.show()
             self._settings_panel.raise_()
+
+    def eventFilter(self, obj, event):
+        """Catch mouse presses on the viewfinder QLabel for AF point selection."""
+        if obj is self._preview and event.type() == QEvent.MouseButtonPress:
+            self._on_viewfinder_tap(event)
+            return False   # don't consume — let children still receive it
+        return super().eventFilter(obj, event)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:

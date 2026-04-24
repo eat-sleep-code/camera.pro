@@ -6,6 +6,12 @@ from PySide6.QtCore import Slot
 import globals
 import threading
 
+# libcamera control enum values (integers).  picamera2 requires int, not str.
+_METERING = {'CentreWeighted': 0, 'Spot': 1, 'Matrix': 2}
+_EXPOSURE  = {'Normal': 0, 'Short': 1, 'Long': 2}
+_AWB       = {'Auto': 0, 'Incandescent': 1, 'Tungsten': 2,
+              'Fluorescent': 3, 'Indoor': 4, 'Daylight': 5, 'Cloudy': 6}
+
 console = Console()
 
 class Actions:
@@ -147,7 +153,10 @@ class Actions:
 			if exposureMode == 'Disabled':
 				globals.primary.module.set_controls({"AeEnable": False})
 			else:
-				globals.primary.module.set_controls({"AeEnable": True, "AeExposureMode": exposureMode})
+				globals.primary.module.set_controls({
+					"AeEnable": True,
+					"AeExposureMode": _EXPOSURE.get(exposureMode, 0),
+				})
 		except Exception as ex:
 			globals.state.lastMessage = 'Invalid Exposure Mode! ' + str(exposureMode)
 			console.warn(globals.state.lastMessage + str(ex))
@@ -164,7 +173,9 @@ class Actions:
 
 		try:
 			globals.state.meteringMode = meteringMode
-			globals.primary.module.set_controls({"AeMeteringMode": meteringMode})
+			globals.primary.module.set_controls({
+				"AeMeteringMode": _METERING.get(meteringMode, 0),
+			})
 		except Exception as ex:
 			globals.state.lastMessage = 'Invalid Metering Mode! ' + str(meteringMode)
 			console.warn(globals.state.lastMessage + str(ex))
@@ -239,7 +250,10 @@ class Actions:
 			if awbMode == 'Disabled':
 				globals.primary.module.set_controls({"AwbEnable": False})
 			else:
-				globals.primary.module.set_controls({"AwbEnable": True, "AwbMode": awbMode})
+				globals.primary.module.set_controls({
+					"AwbEnable": True,
+					"AwbMode": _AWB.get(awbMode, 0),
+				})
 		except Exception as ex:
 			globals.state.lastMessage = 'Invalid AWB Mode! ' + str(awbMode)
 			console.warn(globals.state.lastMessage + str(ex))
