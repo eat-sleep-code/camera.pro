@@ -22,6 +22,17 @@ os.environ.setdefault('QT_QPA_GENERIC_PLUGINS', 'evdevtouch')
 # Also suppress noisy libcamera log output.
 os.environ.setdefault('LIBCAMERA_LOG_LEVELS', '3')
 
+# ---------------------------------------------------------------------------
+# Hide the VT console cursor and blank the terminal so it doesn't bleed
+# through the framebuffer while Qt is initialising.  Restored on exit.
+try:
+    with open('/dev/tty1', 'wb') as _tty:
+        _tty.write(b'\033[?25l')   # hide cursor
+        _tty.write(b'\033[2J')     # clear screen
+        _tty.write(b'\033[H')      # move to home position
+except Exception:
+    pass
+
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
 
@@ -81,18 +92,31 @@ if globals.cameras.count > 1 and globals.secondary is not None:
 # ---------------------------------------------------------------------------
 # Cleanup — runs when QApplication.quit() is called (before event loop exits).
 
+def _stop_unit(unit):
+    """Stop a single camera unit — run on a thread so it can be abandoned."""
+    try:
+        if unit.isRecording:
+            unit.module.stop_recording()
+        unit.module.stop()
+    except Exception:
+        pass
+
 def _on_quit():
-    """Stop camera hardware so it doesn't hold resources after exit."""
+    """Stop camera hardware so it doesn't hold resources after exit.
+
+    Each camera is stopped on its own thread and we wait at most 5 s total
+    so a hung picamera2.stop() never delays systemd's shutdown sequence.
+    """
+    threads = []
     for unit_name in ('primary', 'secondary'):
         unit = getattr(globals, unit_name, None)
         if unit is None:
             continue
-        try:
-            if unit.isRecording:
-                unit.module.stop_recording()
-            unit.module.stop()
-        except Exception:
-            pass
+        t = threading.Thread(target=_stop_unit, args=(unit,), daemon=True)
+        t.start()
+        threads.append(t)
+    for t in threads:
+        t.join(timeout=5)
 
 _app.aboutToQuit.connect(_on_quit)
 
@@ -117,5 +141,12 @@ touchscreen = Touchscreen()
 try:
     with open('/dev/fb0', 'wb') as _fb:
         _fb.write(b'\x00' * (800 * 480 * 4))
+except Exception:
+    pass
+
+# Restore the VT cursor so the terminal is usable if dropped back to console.
+try:
+    with open('/dev/tty1', 'wb') as _tty:
+        _tty.write(b'\033[?25h')   # show cursor
 except Exception:
     pass
