@@ -377,7 +377,7 @@ class LeftPanel(OverlayWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 8, 0, 8)
-        layout.setSpacing(5)
+        layout.setSpacing(15)
 
         self._buttons = {}
         for icon, lbl, cb in controls:
@@ -530,7 +530,7 @@ class RightPanel(OverlayWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 8, 0, 8)
-        layout.setSpacing(5)
+        layout.setSpacing(15)
 
         # Photo capture — always captures a still regardless of mode state.
         self._photo_btn = CaptureButton(BTN_H, self)
