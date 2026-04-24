@@ -387,10 +387,12 @@ class LeftPanel(OverlayWidget):
             for k, b in self._buttons.items():
                 b.set_selected(k == name)
             btn = self._buttons[name]
-            btn_pos = btn.mapTo(self.parent(), QPoint(0, 0))
             self._stepper.set_control(name, cycle_fn)
-            # Align popup top with the tapped button's top
-            self._stepper.move(PANEL_W + 4, btn_pos.y())
+            # self.y()  = LeftPanel top inside _preview
+            # btn.y()   = button top inside LeftPanel
+            # Sum gives the button's top in _preview coordinates — no mapTo needed.
+            popup_y = self.y() + btn.y()
+            self._stepper.move(PANEL_W + 4, popup_y)
             self._stepper.show()
             self._stepper.raise_()
 
@@ -508,14 +510,19 @@ class RightPanel(OverlayWidget):
         layout.setContentsMargins(0, 8, 0, 8)
         layout.setSpacing(4)
 
-        self._capture_btn = CaptureButton(BTN_H, self)
-        self._capture_btn.set_callback(self._on_capture)
-        layout.addWidget(self._capture_btn, 0, Qt.AlignHCenter)
+        # Photo capture — always captures a still regardless of mode state.
+        self._photo_btn = CaptureButton(BTN_H, self)
+        self._photo_btn.set_callback(self._on_photo)
+        layout.addWidget(self._photo_btn, 0, Qt.AlignHCenter)
 
-        timer_btn = CamButton('timer', 'Off', BTN_H, self)
-        timer_btn.set_callback(self._on_timer)
-        self._timer_btn = timer_btn
-        layout.addWidget(timer_btn, 0, Qt.AlignHCenter)
+        # Video record / stop — tap to start recording, tap again to stop.
+        self._video_btn = CamButton('video', 'REC', BTN_H, self)
+        self._video_btn.set_callback(self._on_video)
+        layout.addWidget(self._video_btn, 0, Qt.AlignHCenter)
+
+        self._timer_btn = CamButton('timer', 'Off', BTN_H, self)
+        self._timer_btn.set_callback(self._on_timer)
+        layout.addWidget(self._timer_btn, 0, Qt.AlignHCenter)
 
         settings_btn = CamButton('settings', '', BTN_H, self)
         settings_btn.set_callback(self._on_settings)
@@ -524,12 +531,19 @@ class RightPanel(OverlayWidget):
         layout.addStretch()
         self.setLayout(layout)
 
-    def _on_capture(self):
-        if globals.state.captureMode == 'video':
-            self._actions.CaptureVideo()
-        else:
-            self._actions.CaptureImage()
-        self._capture_btn.update_state()
+    def _on_photo(self):
+        globals.state.captureMode = 'photo'
+        self._actions.CaptureImage()
+
+    def _on_video(self):
+        globals.state.captureMode = 'video'
+        self._actions.CaptureVideo()
+        self._sync_video_btn()
+
+    def _sync_video_btn(self):
+        recording = globals.primary.isRecording
+        self._video_btn.set_selected(recording)
+        self._video_btn.set_label('STOP' if recording else 'REC')
 
     def _on_timer(self):
         self._actions.SetTimer()
@@ -538,13 +552,13 @@ class RightPanel(OverlayWidget):
         self._timer_btn.set_selected(t > 0)
 
     def _on_settings(self):
-        # Signal the main window to toggle settings panel
         w = self.window()
         if hasattr(w, 'toggle_settings'):
             w.toggle_settings()
 
     def update_state(self):
-        self._capture_btn.update_state()
+        self._photo_btn.update_state()
+        self._sync_video_btn()
         t = globals.state.timer
         self._timer_btn.set_label('Off' if t == 0 else f'{t}s')
         self._timer_btn.set_selected(t > 0)
@@ -594,24 +608,11 @@ class CaptureButton(OverlayWidget):
         s = self._size
         cx, cy, r = s // 2, s // 2, s // 2 - 4
 
-        is_video = globals.state.captureMode == 'video'
-        is_recording = globals.primary.isRecording
-
-        if is_recording:
-            p.setPen(QPen(C_BTN_SEL, 3))
-            p.setBrush(QBrush(C_REC.darker(120) if self._hovered else C_REC))
-            p.drawEllipse(cx - r, cy - r, r * 2, r * 2)
-            pm = get_icon_pixmap('stop', 28, QColor(255, 255, 255))
-        elif is_video:
-            p.setPen(QPen(QColor(255, 255, 255, 60), 2))
-            p.setBrush(QBrush(C_REC.darker(130) if self._hovered else C_REC))
-            p.drawEllipse(cx - r, cy - r, r * 2, r * 2)
-            pm = get_icon_pixmap('video', 28, QColor(255, 255, 255))
-        else:
-            p.setPen(QPen(QColor(255, 255, 255, 200), 3))
-            p.setBrush(QBrush(QColor(255, 255, 255, 80 if self._hovered else 40)))
-            p.drawEllipse(cx - r, cy - r, r * 2, r * 2)
-            pm = get_icon_pixmap('camera', 28, QColor(255, 255, 255, 230))
+        # CaptureButton is the photo shutter — always shows the camera icon.
+        p.setPen(QPen(QColor(255, 255, 255, 200), 3))
+        p.setBrush(QBrush(QColor(255, 255, 255, 80 if self._hovered else 40)))
+        p.drawEllipse(cx - r, cy - r, r * 2, r * 2)
+        pm = get_icon_pixmap('camera', 28, QColor(255, 255, 255, 230))
 
         p.drawPixmap((s - pm.width()) // 2, (s - pm.height()) // 2, pm)
         p.end()
