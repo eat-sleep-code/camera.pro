@@ -1,0 +1,12 @@
+[Unit]
+Description=FT5506 Userspace Touch Driver
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/home/pi/camera.pro-venv/bin/python3 /home/pi/camera.pro/ft5506_touch.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

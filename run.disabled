@@ -1,2 +1,8 @@
-#!/bin/bash
-exec sudo /home/pi/camera.pro-venv/bin/python /home/pi/camera.pro/camera.py
+#!/bin/sh
+# daemontools run script for camera.pro
+# Rename to 'run' (no extension) to enable autostart.
+exec env \
+  QT_QPA_PLATFORM=linuxfb \
+  QT_QPA_GENERIC_PLUGINS=evdevtouch \
+  LIBCAMERA_LOG_LEVELS=3 \
+  /home/pi/camera.pro-venv/bin/python3 /home/pi/camera.pro/camera.py
