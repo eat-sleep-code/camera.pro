@@ -101,7 +101,7 @@ sudo reboot
 ## Infrared Cameras
 If you are using an infrared (IR) camera, you may need to modify the Auto White Balance (AWB) mode at boot time.
 
-This can be achieved by executing `sudo nano /boot/config.txt` and adding the following lines.
+This can be achieved by executing `sudo nano /boot/firmware/config.txt` and adding the following lines.
 
 ```bash
 # Camera Settings 
