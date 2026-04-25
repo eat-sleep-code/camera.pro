@@ -652,11 +652,6 @@ class RightPanel(OverlayWidget):
         layout.addWidget(settings_btn, 0, Qt.AlignHCenter)
 
         layout.addStretch()
-
-        # Power button — pinned to the bottom of the panel.
-        self._power_btn = PowerButton(BTN_H, self)
-        layout.addWidget(self._power_btn, 0, Qt.AlignHCenter)
-
         self.setLayout(layout)
 
     def _on_photo(self):
@@ -1076,6 +1071,12 @@ class CameraWindow(QMainWindow):
         self._settings_panel.hide()
         self._settings_panel.raise_()
 
+        # Power button — positioned after a layout pass so we can read the
+        # bracket button's actual y-coordinate and align the power button to it.
+        self._power_btn = PowerButton(BTN_H, self._preview)
+        self._power_btn.hide()
+        QTimer.singleShot(0, self._position_power_btn)
+
         # Install an event filter on _preview to handle viewfinder taps
         # (used for AF point selection when hasAutofocus is True).
         self._preview.installEventFilter(self)
@@ -1112,6 +1113,15 @@ class CameraWindow(QMainWindow):
             )
         except Exception:
             pass
+
+    def _position_power_btn(self):
+        """Align the power button with the bracket button after the first layout pass."""
+        bracket_btn = self._left._buttons['bracket']
+        y = self._left.y() + bracket_btn.y()
+        x = self._right.x() + (PANEL_W - BTN_H) // 2
+        self._power_btn.setGeometry(x, y, BTN_H, BTN_H)
+        self._power_btn.show()
+        self._power_btn.raise_()
 
     def _on_viewfinder_tap(self, event):
         if not globals.primary.hasAutofocus:
