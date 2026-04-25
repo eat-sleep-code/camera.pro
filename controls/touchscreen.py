@@ -66,6 +66,7 @@ _QTA_ICONS = {
     'minus':    'mdi.minus-circle-outline',
     'af_on':    'mdi.focus-field-horizontal',
     'check':    'mdi.check-circle-outline',
+    'power':    'mdi.power',
 }
 
 # Unicode/text fallbacks used when qtawesome is not installed
@@ -85,6 +86,7 @@ _ICON_FALLBACK = {
     'minus':    '\u2212',
     'af_on':    'AF',
     'check':    '\u2713',
+    'power':    '\u23fb',
 }
 
 
@@ -520,6 +522,105 @@ class StepperPopup(OverlayWidget):
 
 
 # ---------------------------------------------------------------------------
+# Power button — hold for 5 s to shut down
+
+class PowerButton(OverlayWidget):
+    """Hold-to-shutdown button.  Fills orange over 5 s; releases before that cancel."""
+
+    HOLD_MS = 5000   # full hold duration
+    TICK_MS = 50     # animation tick
+
+    def __init__(self, size: int = 64, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(size, size)
+        self._size     = size
+        self._hovered  = False
+        self._holding  = False
+        self._progress = 0.0     # 0.0 → 1.0
+
+        self.setAttribute(Qt.WA_Hover)
+        self.installEventFilter(self)
+
+        self._tick_timer = QTimer(self)
+        self._tick_timer.setInterval(self.TICK_MS)
+        self._tick_timer.timeout.connect(self._tick)
+
+    def _tick(self):
+        self._progress = min(1.0, self._progress + self.TICK_MS / self.HOLD_MS)
+        self.update()
+        if self._progress >= 1.0:
+            self._tick_timer.stop()
+            self._shutdown()
+
+    def _shutdown(self):
+        import subprocess
+        try:
+            # Service runs as root so sudo is not required.
+            subprocess.Popen(['shutdown', 'now'])
+        except Exception:
+            pass
+
+    def _reset(self):
+        self._holding  = False
+        self._progress = 0.0
+        self._tick_timer.stop()
+        self.update()
+
+    def eventFilter(self, obj, event):
+        t = event.type()
+        if t == QEvent.HoverEnter:
+            self._hovered = True;  self.update()
+        elif t == QEvent.HoverLeave:
+            self._hovered = False; self.update()
+        elif t == QEvent.MouseButtonPress:
+            self._holding  = True
+            self._progress = 0.0
+            self._tick_timer.start()
+            return True
+        elif t == QEvent.MouseButtonRelease:
+            if self._holding and self._progress < 1.0:
+                self._reset()
+            return True
+        return super().eventFilter(obj, event)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        s  = self._size
+        cx, cy, r = s // 2, s // 2, s // 2 - 4
+
+        # Base circle
+        fill_alpha = 55 if self._hovered else 30
+        p.setPen(QPen(QColor(200, 200, 200, 120), 2))
+        p.setBrush(QBrush(QColor(255, 255, 255, fill_alpha)))
+        p.drawEllipse(cx - r, cy - r, r * 2, r * 2)
+
+        # Orange fill — grows as progress increases
+        if self._progress > 0:
+            orange_fill = QColor(255, 130, 0, int(200 * self._progress))
+            p.setPen(Qt.NoPen)
+            p.setBrush(QBrush(orange_fill))
+            p.drawEllipse(cx - r, cy - r, r * 2, r * 2)
+
+            # Sweeping arc border (clockwise from top)
+            p.setPen(QPen(QColor(255, 140, 0, 230), 3))
+            p.setBrush(Qt.NoBrush)
+            p.drawArc(cx - r, cy - r, r * 2, r * 2,
+                      90 * 16,
+                      -int(360 * self._progress * 16))
+
+        # Power icon — turns orange as hold progresses
+        icon_alpha = int(180 + 75 * self._progress)
+        if self._progress > 0:
+            icon_col = QColor(255, 140, 0, icon_alpha)
+        else:
+            icon_col = QColor(255, 255, 255, 180)
+        pm = get_icon_pixmap('power', 26, icon_col)
+        p.drawPixmap((s - pm.width()) // 2, (s - pm.height()) // 2, pm)
+        p.end()
+
+
+# ---------------------------------------------------------------------------
 # Right panel — capture + secondary controls
 
 class RightPanel(OverlayWidget):
@@ -551,6 +652,11 @@ class RightPanel(OverlayWidget):
         layout.addWidget(settings_btn, 0, Qt.AlignHCenter)
 
         layout.addStretch()
+
+        # Power button — pinned to the bottom of the panel.
+        self._power_btn = PowerButton(BTN_H, self)
+        layout.addWidget(self._power_btn, 0, Qt.AlignHCenter)
+
         self.setLayout(layout)
 
     def _on_photo(self):
