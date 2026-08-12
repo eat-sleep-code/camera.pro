@@ -1268,8 +1268,32 @@ class SettingsPanel(OverlayWidget):
         close_btn.clicked.connect(self.hide)
         outer.addWidget(close_btn)
 
+        # ── Update ─────────────────────────────────────────────────────────
+        outer.addSpacing(8)
+        update_btn = QPushButton('⬆ System Update', self)
+        update_btn.setObjectName('settingsUpdate')
+        update_btn.setFixedHeight(53)
+        update_btn.setStyleSheet(
+            'background: rgba(255,140,0,0.25); color: white; '
+            'font-size: 18px; font-weight: 600; border-radius: 10px;'
+        )
+        update_btn.clicked.connect(self._update_system)
+        outer.addWidget(update_btn)
+
         self.setLayout(outer)
         self.refresh()
+
+    def _update_system(self):
+        import subprocess
+        try:
+            subprocess.Popen([
+                'sh', '-c',
+                'sudo apt update && sudo apt full-upgrade -y && '
+                'sudo apt autoremove -y && sudo apt autoclean && sudo reboot'
+            ])
+        except Exception:
+            pass
+        QApplication.instance().quit()
 
     # ── Value cycling ───────────────────────────────────────────────────────
 
